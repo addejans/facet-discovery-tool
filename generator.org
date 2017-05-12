@@ -1,0 +1,143 @@
+* A generator of IP formulation
+
+** Preamble
+#+BEGIN_SRC lisp :tangle "generator.lisp"
+(in-package #:facet-discovery-tool)
+#+END_SRC
+
+** An example
+We want to generate Integer Programming formulations of the predicate 
+: at_least_m(x_1, x_2, x_n) = k  x_i in [0,..,L]
+which implies that at least ~m~ of the ~n~ variables must equal ~k~. 
+
+For example ~at_least_2(x_1,x_2,x_3)=3~ with domain ~[0,..,4]~ should generate
+#+BEGIN_SRC latex
+  \begin{align*}
+    0y_{1,0} + 1y_{1,1} + 2y_{1,2} + 3y_{1,3} + 4y_{1,4} - x_1 &= 0\\
+    0y_{2,0} + 1y_{2,1} + 2y_{2,2} + 3y_{2,3} + 4y_{2,4} - x_2 &= 0\\
+    0y_{3,0} + 1y_{3,1} + 2y_{3,2} + 3y_{3,3} + 4y_{3,4} - x_3 &= 0\\
+    y_{1,0}+y_{1,1}+y_{1,2}+y_{1,3}+y_{1,4} &= 1\\
+    y_{2,0}+y_{2,1}+y_{2,2}+y_{2,3}+y_{2,4} &= 1\\
+    y_{3,0}+y_{3,1}+y_{3,2}+y_{3,3}+y_{3,4} &= 1\\
+    y_{1,3} + y_{2,3} + y_{3,3} &= 2\\
+    y_{i,j}&\ge 0\\
+    y_{i,j}&\le 1
+  \end{align*}
+#+END_SRC
+The first three equalities give values to the real variables.  The
+next three ensure that each variable is assigned exactly one colour.
+The next one fixes the correct number of variables to the required
+colour.  The last set are the zero-one bounds for each additional
+variable.
+
+We will start with a simple-minded version that will printout the
+formulation.
+#+BEGIN_SRC lisp :tangle "generator.lisp"
+  (defun output-at-least (m n k l)
+    (format t "#### at_least_~d(x_1,...,x_~d) = ~d  ; x_i in [0,..,~d]~&" m n k l)
+    (let ((I (loop :for i :from 1 :to n :collect i))
+          (J (loop :for j :from 0 :to l :collect j)))
+      (dolist (ii I)
+        (dolist (jj J)
+          (when (< 0 jj) (format t "~[ ~; ~:; +~]~dy(~d,~d)" jj jj ii jj)))
+        (format t "-x~d = 0~&" ii)
+        (dolist (jj J)
+          (format t "~[ ~:;+~] y(~d,~d) " jj ii jj))
+        (format t "= 1~&"))
+      (dolist (ii I)
+        (format t "~[ ~; ~:;+~] y(~d,~d) " ii ii k))
+      (format t ">= ~d~&" m)
+      (dolist (ii I)
+        (dolist (jj J)
+          (format t "y(~d,~d) >= 0~&" ii jj)
+          (format t "y(~d,~d) <= 1~&" ii jj)))))
+
+#+END_SRC
+
+#+RESULTS:
+: OUTPUT-AT-LEAST
+
+#+BEGIN_SRC lisp :results output
+(output-at-least 2 3 3 4)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#### at_least_2(x_1,...,x_3) = 3  ; x_i in [0,..,4]
+ 1y(1,1) +2y(1,2) +3y(1,3) +4y(1,4)-x1 = 0
+  y(1,0) + y(1,1) + y(1,2) + y(1,3) + y(1,4) = 1
+ 1y(2,1) +2y(2,2) +3y(2,3) +4y(2,4)-x2 = 0
+  y(2,0) + y(2,1) + y(2,2) + y(2,3) + y(2,4) = 1
+ 1y(3,1) +2y(3,2) +3y(3,3) +4y(3,4)-x3 = 0
+  y(3,0) + y(3,1) + y(3,2) + y(3,3) + y(3,4) = 1
+  y(1,3) + y(2,3) + y(3,3) >= 2
+y(1,0) >= 0
+y(1,0) <= 1
+y(1,1) >= 0
+y(1,1) <= 1
+y(1,2) >= 0
+y(1,2) <= 1
+y(1,3) >= 0
+y(1,3) <= 1
+y(1,4) >= 0
+y(1,4) <= 1
+y(2,0) >= 0
+y(2,0) <= 1
+y(2,1) >= 0
+y(2,1) <= 1
+y(2,2) >= 0
+y(2,2) <= 1
+y(2,3) >= 0
+y(2,3) <= 1
+y(2,4) >= 0
+y(2,4) <= 1
+y(3,0) >= 0
+y(3,0) <= 1
+y(3,1) >= 0
+y(3,1) <= 1
+y(3,2) >= 0
+y(3,2) <= 1
+y(3,3) >= 0
+y(3,3) <= 1
+y(3,4) >= 0
+y(3,4) <= 1
+#+end_example
+
+** Driver
+A small utility to generate all the parameter combinations from the
+parameter domains. It expands, for example ~((1 2) (5 7))~ which
+indicates two parameters, the first with domain $[1,2]$ and the second
+with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
+7))~. Each one of those will be an instance to generate.
+#+BEGIN_SRC lisp :tangle "generator.lisp"
+  (defun generate-param-list (params)
+    (if (= 1 (length params))
+        (mapcar #'list (car params))
+        (let ((l))
+          (dolist (first (car params) (nreverse l))
+            (dolist (others (generate-param-list (cdr params)))
+              (push (cons first others) l))))))
+#+END_SRC
+
+The driver of the generator accepts a list of parameters with their
+domains, along with a function that does the generating.  From this it
+generates all the instances of all parameters' domains and outputs
+into a subdirectory of instances.
+#+BEGIN_SRC lisp :tangle "generator.lisp"
+  (defun generate-instances (params generator &optional (filename "instance"))
+    (dolist (param (generate-param-list params))
+      (with-open-file (out (format nil "./instances/~a~{-~d~}" filename param)
+                           :direction :output :if-exists :supersede)
+        (let ((*standard-output* out))
+          (apply generator param)))))
+#+END_SRC
+
+#+RESULTS:
+: GENERATE-INSTANCES
+
+#+BEGIN_SRC lisp :session :results output
+(generate-instances '((1) (3) (2 3) (4)) #'output-at-least "at-least")
+#+END_SRC
+
+#+RESULTS:
+
