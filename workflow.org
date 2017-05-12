@@ -1,0 +1,14 @@
+* Workflow for git
+
+** Initially
+clone 
+
+** How to do work
+git pull --rebase origin master
+
+<Now work on files; when ready>
+git status
+git add <some files>
+git commit
+
+git push origin master
