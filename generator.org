@@ -103,7 +103,8 @@ y(3,4) >= 0
 y(3,4) <= 1
 #+end_example
 
-** Driver
+** Generator
+*** Utilities
 A small utility to generate all the parameter combinations from the
 parameter domains. It expands, for example ~((1 2) (5 7))~ which
 indicates two parameters, the first with domain $[1,2]$ and the second
@@ -157,7 +158,7 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 | 2 | 6 | 7 |
 | 2 | 6 | 8 |
 
-
+*** Mainline
 The driver of the generator accepts a list of parameters with their
 domains, along with a function that does the generating.  From this it
 generates all the instances of all parameters' domains and outputs
