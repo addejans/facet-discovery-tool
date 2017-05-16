@@ -56,7 +56,7 @@ formulation.
 
 #+RESULTS:
 : OUTPUT-AT-LEAST
-
+*** One instance
 #+BEGIN_SRC lisp :results output
 (output-at-least 2 3 3 4)
 #+END_SRC
@@ -158,13 +158,86 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 | 2 | 6 | 7 |
 | 2 | 6 | 8 |
 
-*** Mainline
-The driver of the generator accepts a list of parameters with their
+*** Constraint: at-least
+The ~at-least~ constraint accepts four parameters ~at-least(m,n,k,l)~ and means
+: at_least_m(x_1, x_2, x_n) = k  x_i in [0,..,l]
+Its generator must return the matrix of linear constraints ~C,me,n~, where the first ~me~ rows are
+: b = a_1 x_1 + ... + a_{kl} y_{kl} 
+end the next ~m-me~ rows are
+: b <= a_1 x_1 + ... + a_{kl} y_{kl} 
+The nv is the number of variables considered 'real', i.e. the $x_1,
+\ldots, x_n$ in this case.
+
+First, a mapping from the variables $y_{ij}$ into $[n,n+(l+1)n]$.
+#+BEGIN_SRC lisp
+  (defun get-var-index (n l i j)
+    (+ n (* (1- i) (1+ l)) j))
+#+END_SRC
+
+#+RESULTS:
+: GET-VAR-INDEX
+
+#+BEGIN_SRC lisp
+(equalp '(3 4 9) (list (get-var-index 3 4 1 0) (get-var-index 3 4 1 1) (get-var-index 3 4 2 1)))
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp
+  (defun gen-at-least (m n k l)
+    (labels ((var-index (i j) (+ n 1 (* (1- i) (1+ l)) j)))
+    (let ((I (loop :for i :from 1 :to n :collect i))
+          (J (loop :for j :from 0 :to l :collect j))
+          (columns (+ 1 n (* n (1+ l))))
+          (C nil))
+      (dolist (ii I)
+        (let ((row (new-row columns)))
+          (setf (aref row ii) -1)
+          (dolist (jj J)
+            (setf (aref row (var-index ii jj)) jj))
+          (push row C))
+        (let ((row (new-row columns)))
+          (setf (aref row 0) 1)
+          (dolist (jj J)
+            (setf (aref row (var-index ii jj)) 1))
+          (push row C)))
+      (let ((row (new-row columns)))
+        (setf (aref row 0) m)
+        (dolist (ii I)
+          (setf (aref row (var-index ii k)) 1))
+        (push row C))
+      (dolist (ii I)
+        (dolist (jj J)
+          (let ((row0 (new-row columns))
+                (row1 (new-row columns)))
+            (setf (aref row0 (var-index ii jj)) 1)
+            (push row0 C)
+            (setf (aref row1 (var-index ii jj)) -1)
+            (setf (aref row1 0) -1)
+            (push row1 C))))
+      (values (nreverse C) (+ n n 1) n))))
+#+END_SRC
+
+#+RESULTS:
+: GEN-AT-LEAST
+
+*** Constraint data structure
+#+BEGIN_SRC lisp
+  (defun new-row (l)
+    (make-array l :initial-element 0 :element-type 'rational))
+#+END_SRC
+
+#+RESULTS:
+: NEW-MATRIX
+
+** Mainline
+The  driver of the generator accepts a list of parameters with their
 domains, along with a function that does the generating.  From this it
 generates all the instances of all parameters' domains and outputs
 into a subdirectory of instances.
 #+BEGIN_SRC lisp :tangle "generator.lisp"
-  (defun generate-instances (params generator &optional (filename "instance"))
+  (defun generate-instances-and-output (params generator &optional (filename "instance"))
     (dolist (param (generate-param-list params))
       (with-open-file (out (format nil "./instances/~a~{-~d~}" filename param)
                            :direction :output :if-exists :supersede)
@@ -176,8 +249,9 @@ into a subdirectory of instances.
 : GENERATE-INSTANCES
 
 #+BEGIN_SRC lisp :session :results output
-(generate-instances '((1) (3) (2 3) (4)) #'output-at-least "at-least")
+(generate-instances-and-output '((1) (3) (2 3) (4)) #'output-at-least "at-least")
 #+END_SRC
 
 #+RESULTS:
+
 
