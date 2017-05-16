@@ -110,14 +110,53 @@ indicates two parameters, the first with domain $[1,2]$ and the second
 with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 7))~. Each one of those will be an instance to generate.
 #+BEGIN_SRC lisp :tangle "generator.lisp"
+  (defun range-to-list (param)
+    "Param could be one of three forms (a) (a b) (a b c ... d). We
+  expand the second into the third if a < b+1."
+    (if (not (= 2 (length param)))
+        param
+        (loop :for i :from (first param) :to (second param) :collect i)))
+#+END_SRC
+
+#+RESULTS:
+: RANGE-TO-LIST
+#+BEGIN_SRC lisp
+(list (range-to-list '(3)) (range-to-list '(3 4 5)) (range-to-list '(3 7)))
+#+END_SRC
+
+#+RESULTS:
+| 3 |   |   |   |   |
+| 3 | 4 | 5 |   |   |
+| 3 | 4 | 5 | 6 | 7 |
+
+
+#+BEGIN_SRC lisp :tangle "generator.lisp"
   (defun generate-param-list (params)
     (if (= 1 (length params))
-        (mapcar #'list (car params))
+        (mapcar #'list (range-to-list (car params)))
         (let ((l))
-          (dolist (first (car params) (nreverse l))
+          (dolist (first (range-to-list (car params)) (nreverse l))
             (dolist (others (generate-param-list (cdr params)))
               (push (cons first others) l))))))
 #+END_SRC
+
+#+RESULTS:
+: GENERATE-PARAM-LIST
+
+#+BEGIN_SRC lisp 
+(generate-param-list '((2) (3 6) (7 8)))
+#+END_SRC
+
+#+RESULTS:
+| 2 | 3 | 7 |
+| 2 | 3 | 8 |
+| 2 | 4 | 7 |
+| 2 | 4 | 8 |
+| 2 | 5 | 7 |
+| 2 | 5 | 8 |
+| 2 | 6 | 7 |
+| 2 | 6 | 8 |
+
 
 The driver of the generator accepts a list of parameters with their
 domains, along with a function that does the generating.  From this it
