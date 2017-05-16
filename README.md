@@ -43,13 +43,18 @@ the x space. For the example above, the projection is
 
 ```
 -1.00000 x1   +1.00000 x2   +1.00000 x3   <= 6.00000 
--1.00000 x1   +1.00000 x2   -1.00000 x3   <= 2.00000 
--1.00000 x1   -1.00000 x2   -1.00000 x3   <= -2.00000 
--1.00000 x1   -1.00000 x2   +1.00000 x3   <= 2.00000 
 +1.00000 x1   -1.00000 x2   +1.00000 x3   <= 6.00000 
-+1.00000 x1   -1.00000 x2   -1.00000 x3   <= 2.00000 
 +1.00000 x1   +1.00000 x2   -1.00000 x3   <= 6.00000 
+
+
+-1.00000 x1   +1.00000 x2   -1.00000 x3   <= 2.00000 
+-1.00000 x1   -1.00000 x2   +1.00000 x3   <= 2.00000 
++1.00000 x1   -1.00000 x2   -1.00000 x3   <= 2.00000 
+
+-1.00000 x1   -1.00000 x2   -1.00000 x3   <= -2.00000 
 +1.00000 x1   +1.00000 x2   +1.00000 x3   <= 10.00000 
+
+
 +1.00000 x1                               <= 4.00000 
 -1.00000 x1                               <= 0.00000 
               +1.00000 x2                 <= 4.00000 
@@ -94,3 +99,21 @@ In increasing order of difficulty:
 
 The two easier elements are the generator and the projector. We will
 start with those. 
+
+
+# Data structure
+The matrix passed from generator to projector is a linked list of
+one-dimensional arrays of rationals.
+
+Each array v represents an equality or an inequality in the form
+
+b = a_1 x_1 + ... + a_n x_n
+
+or
+
+b <= a_1 x_1 + ... + a_n x_n
+
+where v[0] contains the constant term and the first n_0 positions after that contain the coefficients of the variables of the subspace on which we are projecting.
+The first l_0 arrays are the equalities.  The rest are the inequalities.
+
+So the call to the projector is  (project M l_0 n_0). 
