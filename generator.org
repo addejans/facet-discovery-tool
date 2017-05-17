@@ -168,22 +168,6 @@ end the next ~m-me~ rows are
 The nv is the number of variables considered 'real', i.e. the $x_1,
 \ldots, x_n$ in this case.
 
-First, a mapping from the variables $y_{ij}$ into $[n,n+(l+1)n]$.
-#+BEGIN_SRC lisp
-  (defun get-var-index (n l i j)
-    (+ n (* (1- i) (1+ l)) j))
-#+END_SRC
-
-#+RESULTS:
-: GET-VAR-INDEX
-
-#+BEGIN_SRC lisp
-(equalp '(3 4 9) (list (get-var-index 3 4 1 0) (get-var-index 3 4 1 1) (get-var-index 3 4 2 1)))
-#+END_SRC
-
-#+RESULTS:
-: T
-
 #+BEGIN_SRC lisp
   (defun gen-at-least (m n k l)
     (labels ((var-index (i j) (+ n 1 (* (1- i) (1+ l)) j)))
@@ -221,7 +205,15 @@ First, a mapping from the variables $y_{ij}$ into $[n,n+(l+1)n]$.
 
 #+RESULTS:
 : GEN-AT-LEAST
-
+*** Display of constraint matrix
+#+BEGIN_SRC lisp
+  (defun outout-matrix (C ne nv)
+    (loop :for i from 0 :below ne :do
+       (let ((row (aref i C)))
+         (format t "~&~d = " (aref row 0))
+         (loop :for i :from 1 : to nv :do
+            (format t "
+#+END_SRC
 *** Constraint data structure
 #+BEGIN_SRC lisp
   (defun new-row (l)
