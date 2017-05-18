@@ -265,7 +265,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
                (format t "~&~vd <= " wc (aref row 0)))
            (loop :for i :from 1 :below (length row) :do
               (if (zerop (aref row i))
-                  (format t "         ")
+                  (format t "~va   ~va" wc "" wi "")
                   (format t "~v@dx(~vd)"  wc (aref row i) wi i)))))))
 #+END_SRC
 
