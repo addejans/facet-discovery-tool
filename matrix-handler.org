@@ -1,0 +1,105 @@
+* Data structure and utilities for FM process
+
+** Data type
+The augmented system is held in a list of simple-vectors.
+We may need to construct rows one at a time.
+#+BEGIN_SRC lisp :tangle "data-structure.lisp"
+  (defun make-row (l)
+    (make-array l :initial-element 0 :element-type 'rational))
+#+END_SRC
+
+#+RESULTS:
+: MAKE-ROW
+
+When we know of the full matrix at the start.
+#+BEGIN_SRC lisp :tangle "data-structure.lisp"
+  (defun make-matrix (nbrows nbcols)
+    (let ((M))
+      (dotimes (i nbrows M)
+        (push (make-row nbcols) M))))
+#+END_SRC
+
+#+RESULTS:
+: MAKE-MATRIX
+
+#+BEGIN_SRC lisp
+(make-matrix 3 4)
+#+END_SRC
+
+#+RESULTS:
+| 0 | 0 | 0 | 0 |
+| 0 | 0 | 0 | 0 |
+| 0 | 0 | 0 | 0 |
+
+Adding a row to a matrix.
+#+BEGIN_SRC lisp :tangle "data-structure.lisp"
+  (defun add-row (M row)
+    (push row M))
+#+END_SRC
+
+#+RESULTS:
+: ADD-ROW
+
+#+BEGIN_SRC lisp
+(add-row (make-matrix 2 4) (make-row 4))
+#+END_SRC
+
+#+RESULTS:
+| 0 | 0 | 0 | 0 |
+| 0 | 0 | 0 | 0 |
+| 0 | 0 | 0 | 0 |
+
+Referencing an indexed element of the matrix. This is very likely not
+useful in production code, but might be useful for displaying or
+debugging purposes. In any case, it will be very slow.
+#+BEGIN_SRC lisp :tangle "data-structure.lisp"
+  (defun matrix-ref (M i j)
+    (aref (nth i M) j))
+#+END_SRC
+
+#+RESULTS:
+: MATRIX-REF
+
+#+BEGIN_SRC lisp :results output
+  (let ((M (make-matrix 3 3))
+        (value 0))
+    (dolist (row M)
+      (dotimes (j (length row))
+        (setf (aref row j) (incf value))))
+    (format t "~&~a @(1 1):~a" M (matrix-ref M 1 1))
+    )
+#+END_SRC
+
+#+RESULTS:
+: (#(1 2 3) #(4 5 6) #(7 8 9)) (1 1):5
+
+Adding two rows to get a (new) third one.
+#+BEGIN_SRC lisp :tangle "data-structure.lisp"
+  (defun add-rows (row-a row-b)
+    (let* ((n (length row-a))
+           (row (make-row n)))
+      (dotimes (i n row)
+        (setf (svref row i) (+ (svref row-a i) (svref row-b i))))))
+#+END_SRC
+
+#+RESULTS:
+: ADD-ROWS
+
+#+BEGIN_SRC lisp :results output
+  (let ((M (make-matrix 2 3))
+        (value 0))
+    (dolist (row M)
+      (dotimes (j (length row))
+        (setf (aref row j) (incf value))))
+    (format t "~&~a" (first M))
+    (format t "~&~a" (second M))
+    (format t "~&========")
+    (format t "~&~a" (add-rows (first M) (second M))))
+#+END_SRC
+
+#+RESULTS:
+: #(1 2 3)
+: #(4 5 6)
+: ========
+: #(5 7 9)
+
