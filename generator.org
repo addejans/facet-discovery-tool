@@ -65,6 +65,9 @@ formulation.
 
 #+RESULTS:
 : OUTPUT-AT-LEAST
+
+
+
 *** One instance
     :PROPERTIES:
     :ID:       dca5cfdf-fe59-4ca9-9c3d-bc105e419c9e
@@ -267,7 +270,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
            (loop :for i :from 1 :below (length row) :do
               (if (zerop (aref row i))
                   (format t "~va   ~va" wc "" wi "")
-                  (format t "~v@d~:[y~;x~](~vd)"  wc (aref row i) (< i nv) wi i)))))))
+                  (format t "~v@d~:[y~;x~](~vd)"  wc (aref row i) (<= i nv) wi i)))))))
 #+END_SRC
 
 #+RESULTS:
@@ -283,7 +286,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
 #+begin_example
    0  =  -1x( 1)                    +1y( 4)  +2y( 5)                           
    1  =                    +1y( 3)  +1y( 4)  +1y( 5)                           
-   0  =           -1y( 2)                                      +1y( 7)  +2y( 8)
+   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
    1  =                                               +1y( 6)  +1y( 7)  +1y( 8)
    1 <=                                      +1y( 5)                    +1y( 8)
    0 <=                    +1y( 3)                                             
@@ -329,8 +332,7 @@ into a subdirectory of instances.
         (let ((*standard-output* out))
           (multiple-value-bind (C ne nv) (apply generator param)
             (output-matrix C ne nv)
-            ;; Here is where we would call the projector
-            ;; (output-matrix (project C ne nv) 0 nv)
+;;            (output-matrix (project C ne nv) 0 nv)
             )))))
 #+END_SRC
 
@@ -338,7 +340,7 @@ into a subdirectory of instances.
 : GENERATE-INSTANCES-AND-OUTPUT
 
 #+BEGIN_SRC lisp :session :results output
-(generate-instances-and-output '((1) (3) (2 4) (5)) #'gen-at-least "at-least")
+(generate-instances-and-output '((1) (2) (2 2) (2)) #'gen-at-least "at-least")
 #+END_SRC
 
 #+RESULTS:

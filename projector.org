@@ -1,0 +1,86 @@
+* The Projector (Fourier-Motzkin)
+  :PROPERTIES:
+  :ID:       68f91b13-7003-4091-b3b0-55315e9d516c
+  :END:
+
+** General structure
+   :PROPERTIES:
+   :ID:       b929f0e7-13d9-48df-bfe7-6d3a5233927a
+   :END:
+The parameters are ~c~, the matrix of equalities and inequalities,
+~ne~ the number of equalities (which are all at the beginning) and
+~nv~ the number of variables onto which to project (and they are at
+positions 1 to ~nv~ since column 0 has the constant side.)
+
+First, use all ~ne~ equalities to eliminate ~ne~ variables (starting
+from the right).  Decide which variable to eliminate next. (In time we
+can think to optimize the choice.) 
+
+Sort the matrix on the coefficient of that variable. For every pair of
+one negative and one positive coefficient, generate the new
+inequality. (This we will do in parallel, eventually.)
+
+Then get rid of redundency. (Eventually.)
+
+Rinse and repeat until only ~nv~ variables are left. (Every
+coefficient past ~nv~ is zero.)
+
+There must be a final redundancy elimination, which must be
+perfect. And also a reduction to "smallest" integer
+coefficient. (Maybe take out the gcd from every row).
+
+
+
+
+
+#+BEGIN_SRC lisp
+  (defun project (C ne nv)
+    (format t "~&~a ~a~&~a" ne nv C))
+#+END_SRC
+
+#+RESULTS:
+: PROJECT
+
+
+#+BEGIN_SRC lisp :session :results output
+  (let ((param '(1 2 2 2))
+        (generator #'gen-at-least))
+    (multiple-value-bind (C ne nv) (apply generator param)
+      (project C ne nv) 0 nv))
+#+END_SRC
+
+#+RESULTS:
+: 4 2
+: (#(0 -1 0 0 1 2 0 0 0) #(1 0 0 1 1 1 0 0 0) #(0 0 -1 0 0 0 0 1 2)
+:  #(1 0 0 0 0 0 1 1 1) #(1 0 0 0 0 1 0 0 1) #(0 0 0 1 0 0 0 0 0)
+:  #(-1 0 0 -1 0 0 0 0 0) #(0 0 0 0 1 0 0 0 0) #(-1 0 0 0 -1 0 0 0 0)
+:  #(0 0 0 0 0 1 0 0 0) #(-1 0 0 0 0 -1 0 0 0) #(0 0 0 0 0 0 1 0 0)
+:  #(-1 0 0 0 0 0 -1 0 0) #(0 0 0 0 0 0 0 1 0) #(-1 0 0 0 0 0 0 -1 0)
+:  #(0 0 0 0 0 0 0 0 1) #(-1 0 0 0 0 0 0 0 -1))
+#+END_SRC
+
+
+#+BEGIN_COMMENT
+#### at_least_1(x_1,...,x_2) = 2  ; x_i in [0,..,2]
+ 1y(1,1) +2y(1,2)-x1 = 0
+  y(1,0) + y(1,1) + y(1,2) = 1
+ 1y(2,1) +2y(2,2)-x2 = 0
+  y(2,0) + y(2,1) + y(2,2) = 1
+  y(1,2) + y(2,2) >= 1
+y(1,0) >= 0
+y(1,0) <= 1
+y(1,1) >= 0
+y(1,1) <= 1
+y(1,2) >= 0
+y(1,2) <= 1
+y(2,0) >= 0
+y(2,0) <= 1
+y(2,1) >= 0
+y(2,1) <= 1
+y(2,2) >= 0
+y(2,2) <= 1
+#### After Projection
+-1.00000 x1   -1.00000 x2   <= -2.00000 
++1.00000 x1                 <= 2.00000 
+              +1.00000 x2   <= 2.00000 
+#+END_COMMENT
