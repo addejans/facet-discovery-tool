@@ -72,18 +72,25 @@ The output of this phase will be of the form of a set of constants,
 with their values and the parameters that produced them.  For the same
 example the abstraction would isolate a number of facets of the form:
 ```
-c1 x1 + c2 x2 + c3 x3 <= R1
+c1 x1 + c2 x2 + c3 x3 <= c4
 ```
-It would then generate, for each constant a list of the form (value, parameters)*
+It would then generate, for each constant a list of the form
+(input parameters) : (output constants). For example
 ```
-c1 (v11, m1, n1, k1, l1) (v12, m2, k2, l2) ...
-c2 (v21, m1, n1, k1, l1) (v22, m2, k2, l2) ...
+(m1, n1, k1, l1) : (c11, c12, c13, c14)
+(m2, n2, k2, l2) : (c21, c22, c23, c24)
+```
+
+Here is a more detailed example from at_least(1,3,2,4) and at_least(1,3,2,5)
+```
+(1,3,2,4) : (-1, 1, -2, 2, 4, 6, 10)
+(1,3,2,5) : (-3, 2, -2, 4, 5, 14, 12)
 ```
 
 ## Discoverer: A function discoverer.
 
 From the list of constants the discoverer finds the functions that,
-from the parameters, determine the constants.  That is `ci =
+from the parameters, determine the constants.  That is `c =
 fi(m,n,k,l)`.  We can then substitute these function in the abstract
 formulation of the facets detected by the abstractor and we have the
 facet of the polytope of the global constraint.
