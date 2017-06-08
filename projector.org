@@ -20,7 +20,7 @@ Sort the matrix on the coefficient of that variable. For every pair of
 one negative and one positive coefficient, generate the new
 inequality. (This we will do in parallel, eventually.)
 
-Then get rid of redundency. (Eventually.)
+Then get rid of redundancy. (Eventually.)
 
 Rinse and repeat until only ~nv~ variables are left. (Every
 coefficient past ~nv~ is zero.)
@@ -30,8 +30,88 @@ perfect. And also a reduction to "smallest" integer
 coefficient. (Maybe take out the gcd from every row).
 
 
+*** TODO Reduce equations
+
+Perform row reduction on the submatrix of equalities.
 
 
+*** DONE Normalize
+
+Consider $x_i$ to be the variable currently being eliminated.
+Divide every inequality where the coefficient of $x_i$ is nonzero by that coefficient.
+The end result of this step should leave every inequality such that the new coefficient
+on $x_i$ is one of three options: 1, -1, or zero.
+
+(This process can definitely be its own function but its efficiency may need to be
+considered.)
+
+#+BEGIN_SRC lisp
+(defun normalize-row (row pos)
+    (let ((a (abs (aref row pos))))
+     (if (not (eq a 0))
+         (loop for i from 0 below (length row)
+             do (setf (aref row i) (/ (aref row i) a))))))
+
+(defun normalize (C pos)
+    (map 'list (lambda (x) (normalize-row x pos)) C))
+
+
+#+END_SRC
+
+#+RESULTS:
+: NORMALIZE
+
+*** TODO Partition and Compare
+
+**** DONE Partition
+
+Ignore henceforth inequalities containing a coefficient of zero on $x_i$.
+Construct two sets, ~Pos~ and ~Neg~, such that every inequality belongs to one or the
+other depending on the sign of the coefficient on $x_i$.
+
+#+BEGIN_SRC lisp
+(defun partition (C xi)
+    (loop for row in C
+      if (< (aref row xi) 0)
+      collect row into neg
+      else if (> (aref row xi) 0)
+      collect row into pos
+      finally (return (values pos neg))))
+
+#+END_SRC
+
+**** DONE Compare
+
+For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~ and $n_i \in$
+~Neg~, take the sum (row addition in the matrix). Append the resulting inequality to
+the matrix.
+
+#+BEGIN_SRC lisp
+(defun compare (C xi)
+    (multiple-value-bind (pos neg) (partition C xi)
+      (let ((res '()))
+      (progn
+        (loop for p in pos do
+          (loop for n in neg do
+          (cons (map 'vector + p n) res)))
+        res))))
+
+#+END_SRC
+
+#+RESULTS:
+: COMPARE
+
+**** TODO Removal
+
+Delete every inequality from the matrix who belonged to ~Pos~ or ~Neg~.
+
+At the end of each comparison, the matrix present represents a set of equalities and
+inequalities with $x_i$ eliminated.
+
+#+BEGIN_SRC lisp
+
+
+#+END_SRC
 
 #+BEGIN_SRC lisp
   (defun project (C ne nv)
