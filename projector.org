@@ -33,6 +33,8 @@ coefficient. (Maybe take out the gcd from every row).
 *** TODO Reduce equations
 
 Perform row reduction on the submatrix of equalities.
+(probably best not to reinvent the wheel here; look into BLAS
+maybe this?: https://github.com/tpapp/lla)
 
 
 *** DONE Normalize
@@ -46,11 +48,14 @@ on $x_i$ is one of three options: 1, -1, or zero.
 considered.)
 
 #+BEGIN_SRC lisp
+(defun divide-row (row divisor)
+    (loop for i from 0 below (length row)
+             do (setf (aref row i) (/ (aref row i) d)))) ; ditch this double aref!
+
 (defun normalize-row (row pos)
     (let ((a (abs (aref row pos))))
-     (if (not (eq a 0))
-         (loop for i from 0 below (length row)
-             do (setf (aref row i) (/ (aref row i) a))))))
+     (if (not (eql a 0.0))
+         (divide-row row a)))) 
 
 (defun normalize (C pos)
     (map 'list (lambda (x) (normalize-row x pos)) C))
@@ -67,15 +72,17 @@ considered.)
 
 Ignore henceforth inequalities containing a coefficient of zero on $x_i$.
 Construct two sets, ~Pos~ and ~Neg~, such that every inequality belongs to one or the
-other depending on the sign of the coefficient on $x_i$.
+other depending on the sign of the coefficient on $x_i$. The parameter ~xi~ is the
+address of the coefficient on $x_i$ in ~C~ and probably needs to be renamed for
+better readability.
 
 #+BEGIN_SRC lisp
 (defun partition (C xi)
     (loop for row in C
-      if (< (aref row xi) 0)
-      collect row into neg
-      else if (> (aref row xi) 0)
-      collect row into pos
+      if (< (aref row xi) 0.0)
+      collect row into neg          ; kind of a nasty hack, there
+      else if (> (aref row xi) 0.0) ; is probably a better way to
+      collect row into pos          ; go about the partitioning
       finally (return (values pos neg))))
 
 #+END_SRC
@@ -91,7 +98,7 @@ the matrix.
     (multiple-value-bind (pos neg) (partition C xi)
       (let ((res '()))
       (progn
-        (loop for p in pos do
+        (loop for p in pos do ; there MUST be a better way...
           (loop for n in neg do
           (cons (map 'vector + p n) res)))
         res))))
@@ -101,21 +108,80 @@ the matrix.
 #+RESULTS:
 : COMPARE
 
-**** TODO Removal
+**** DONE Removal
 
-Delete every inequality from the matrix who belonged to ~Pos~ or ~Neg~.
+Delete every row from the matrix who belonged to ~Pos~ or ~Neg~.
+The only rows not used at this point (and thus, the rows that must remain) are those
+that had a coefficient of zero on $x_i$ to begin with. So, the new matrix will be the
+union of the following: rows from the original with the mentioned zero coefficient, 
+and the result of ~compare~.
 
-At the end of each comparison, the matrix present represents a set of equalities and
-inequalities with $x_i$ eliminated.
+At the end of each comparison and removal, the matrix present represents a set of 
+equalities and inequalities with $x_i$ eliminated.
 
 #+BEGIN_SRC lisp
+(defun remove (C xi)
+    (if C
+        (if (eql 0.0 (aref (car C) xi))
+            (cons (car C) (remove (cdr C) xi)) ; keep it, continue to the rest
+            (remove (cdr C) xi)) ; toss it, continue to the rest
+        nil))
+#+END_SRC
 
+And finally, the whole elimination step for one variable:
+(thought: do we even need to keep track of number of equations in C? discuss monday)
+
+#+BEGIN_SRC lisp
+(defun eliminate (C xi)
+    (append (compare C xi) (remove C xi))) ; order is clearly important here
+
+#+END_SRC
+
+*** Experiment
+#+BEGIN_SRC lisp
+(defun vars-to-elim (C nv) ; returns a sequence of the positions of variables 
+                           ; to be eliminated, currently right to left
+        (reverse (number-sequence (+ nv 1) (- (length (car C)) 1))))
 
 #+END_SRC
 
 #+BEGIN_SRC lisp
-  (defun project (C ne nv)
-    (format t "~&~a ~a~&~a" ne nv C))
+(defun project_v1 (C ne nv i)
+    (if (< (+ nv 1) i) ; if we're into the variables we're supposed to keep, stop
+        C
+        (project_v1 (eliminate C i) ne nv (- i 1)))) ; elim a var, decrement i, keep going
+
+(defun project_v1_top (C ne nv)
+    (project_v1 C ne nv (- (length (car C)) 1))) ; start at last position in row, move
+                                                 ; right to left
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(defun redundancy-trim (C)
+    (remove-duplicates C :test #'equalp))
+
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(defun divide-by-gcd (row)
+    (let ((d (gcd (apply #'values (loop for x across row collect x)))))
+         (divide-row row d)))
+         
+
+(defun coeff-reduction (C)
+    (if C
+        (cons (divide-by-gcd (car C)) (coeff-reduction (cdr C)))
+        C))
+
+#+END_SRC
+
+
+
+** Project
+
+#+BEGIN_SRC lisp
+(defun project (C ne nv)
+    (redundancy-trim (coeff-reduction (project_vi_top (C ne nv)))))
 #+END_SRC
 
 #+RESULTS:
