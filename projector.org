@@ -50,7 +50,7 @@ considered.)
 #+BEGIN_SRC lisp
 (defun divide-row (row divisor)
     (loop for i from 0 below (length row)
-             do (setf (aref row i) (/ (aref row i) d)))) ; ditch this double aref!
+             do (setf (aref row i) (/ (aref row i) divisor)))) ; ditch this double aref!
 
 (defun normalize-row (row pos)
     (let ((a (abs (aref row pos))))
@@ -87,6 +87,9 @@ better readability.
 
 #+END_SRC
 
+#+RESULTS:
+: PARTITION
+
 **** DONE Compare
 
 For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~ and $n_i \in$
@@ -120,22 +123,27 @@ At the end of each comparison and removal, the matrix present represents a set o
 equalities and inequalities with $x_i$ eliminated.
 
 #+BEGIN_SRC lisp
-(defun remove (C xi)
+(defun removal (C xi)
     (if C
         (if (eql 0.0 (aref (car C) xi))
-            (cons (car C) (remove (cdr C) xi)) ; keep it, continue to the rest
-            (remove (cdr C) xi)) ; toss it, continue to the rest
+            (cons (car C) (removal (cdr C) xi)) ; keep it, continue to the rest
+            (removal (cdr C) xi)) ; toss it, continue to the rest
         nil))
 #+END_SRC
 
+#+RESULTS:
+: REMOVAL
+
 And finally, the whole elimination step for one variable:
-(thought: do we even need to keep track of number of equations in C? discuss monday)
+(thought: how can we best keep track of number of equations in C? discuss monday)
 
 #+BEGIN_SRC lisp
-(defun eliminate (C xi)
-    (append (compare C xi) (remove C xi))) ; order is clearly important here
-
+(defun eliminate (C xi)  ; order is clearly important here
+    (append (compare C xi) (removal C xi)))
 #+END_SRC
+
+#+RESULTS:
+: ELIMINATE
 
 *** Experiment
 #+BEGIN_SRC lisp
@@ -145,6 +153,9 @@ And finally, the whole elimination step for one variable:
 
 #+END_SRC
 
+#+RESULTS:
+: VARS-TO-ELIM
+
 #+BEGIN_SRC lisp
 (defun project_v1 (C ne nv i)
     (if (< (+ nv 1) i) ; if we're into the variables we're supposed to keep, stop
@@ -152,15 +163,20 @@ And finally, the whole elimination step for one variable:
         (project_v1 (eliminate C i) ne nv (- i 1)))) ; elim a var, decrement i, keep going
 
 (defun project_v1_top (C ne nv)
-    (project_v1 C ne nv (- (length (car C)) 1))) ; start at last position in row, move
-                                                 ; right to left
+    (project_v1 C ne nv (- (length (car C)) 1)))
 #+END_SRC
+
+#+RESULTS:
+: PROJECT_V1_TOP
 
 #+BEGIN_SRC lisp
 (defun redundancy-trim (C)
     (remove-duplicates C :test #'equalp))
 
 #+END_SRC
+
+#+RESULTS:
+: REDUNDANCY-TRIM
 
 #+BEGIN_SRC lisp
 (defun divide-by-gcd (row)
@@ -175,13 +191,16 @@ And finally, the whole elimination step for one variable:
 
 #+END_SRC
 
+#+RESULTS:
+: COEFF-REDUCTION
+
 
 
 ** Project
 
 #+BEGIN_SRC lisp
 (defun project (C ne nv)
-    (redundancy-trim (coeff-reduction (project_vi_top (C ne nv)))))
+    (redundancy-trim (coeff-reduction (project_v1_top C ne nv))))
 #+END_SRC
 
 #+RESULTS:
