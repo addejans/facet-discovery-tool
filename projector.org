@@ -14,7 +14,7 @@ positions 1 to ~nv~ since column 0 has the constant side.)
 
 First, use all ~ne~ equalities to eliminate ~ne~ variables (starting
 from the right).  Decide which variable to eliminate next. (In time we
-can think to optimize the choice.) 
+can think to optimize the choice.)
 
 Sort the matrix on the coefficient of that variable. For every pair of
 one negative and one positive coefficient, generate the new
@@ -32,11 +32,10 @@ coefficient. (Maybe take out the gcd from every row).
 
 *** DONE Reduce equations
 
-Perform row reduction on the submatrix of equalities.
-(probably best not to reinvent the wheel here; look into BLAS
-maybe this?: https://github.com/tpapp/lla)
+Eliminate variables from the system using the ~ne~ equations.
 
-This function assumes the user is not an idiot.  We need to fix this eventually.
+This function assumes the user is not an idiot.  We need to fix this
+eventually.
 #+BEGIN_SRC lisp 
   (defun first-non-zero (row nv)
     "First non-zero position past nv."
@@ -109,13 +108,14 @@ This function assumes the user is not an idiot.  We need to fix this eventually.
 
 *** DONE Normalize
 
-Consider $x_i$ to be the variable currently being eliminated.
-Divide every inequality where the coefficient of $x_i$ is nonzero by that coefficient.
-The end result of this step should leave every inequality such that the new coefficient
-on $x_i$ is one of three options: 1, -1, or zero.
+Consider $x_i$ to be the variable currently being eliminated.  Divide
+every inequality where the coefficient of $x_i$ is nonzero by that
+coefficient.  The end result of this step should leave every
+inequality such that the new coefficient on $x_i$ is one of three
+options: 1, -1, or zero.
 
-(This process can definitely be its own function but its efficiency may need to be
-considered.)
+(This process can definitely be its own function but its efficiency
+may need to be considered.)
 
 #+BEGIN_SRC lisp
 (defun divide-row (row divisor)
@@ -136,40 +136,44 @@ considered.)
 #+RESULTS:
 : NORMALIZE
 
-*** TODO Partition and Compare
+*** DONE Partition and Compare
 
 **** DONE Partition
 
-Ignore henceforth inequalities containing a coefficient of zero on $x_i$.
-Construct two sets, ~Pos~ and ~Neg~, such that every inequality belongs to one or the
-other depending on the sign of the coefficient on $x_i$. The parameter ~xi~ is the
-address of the coefficient on $x_i$ in ~C~ and probably needs to be renamed for
+Ignore henceforth inequalities containing a coefficient of zero on
+$x_i$.  Construct two sets, ~Pos~ and ~Neg~, such that every
+inequality belongs to one or the other depending on the sign of the
+coefficient on $x_i$. The parameter ~xi~ is the address of the
+coefficient on $x_i$ in ~C~ and probably needs to be renamed for
 better readability.
 
 #+BEGIN_SRC lisp
 (defun partition (C xi)
     (loop for row in C
-      if (< (aref row xi) 0.0)
+      if (< (aref row xi) 0)
       collect row into neg          ; kind of a nasty hack, there
-      else if (> (aref row xi) 0.0) ; is probably a better way to
+      else if (> (aref row xi) 0)   ; may be a better way to
       collect row into pos          ; go about the partitioning
-      finally (return (values pos neg))))
+      else if (zerop (aref row xi))
+      collect row into naught
+      finally (return (values pos neg naught))))
 
 #+END_SRC
 
 #+RESULTS:
 : PARTITION
 
+
 **** DONE Compare
 
-For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~ and $n_i \in$
-~Neg~, take the sum (row addition in the matrix). Append the resulting inequality to
-the matrix.
+For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~
+and $n_i \in$ ~Neg~, take the sum (row addition in the matrix). Append
+the resulting inequality to the matrix.
 
 #+BEGIN_SRC lisp
 (defun compare (C xi)
-    (multiple-value-bind (pos neg) (partition C xi)
-      (let ((res '()))
+    (multiple-value-bind (pos neg naught) (partition C xi)
+      (let ((res naught))
       (progn
         (loop for p in pos do ; there MUST be a better way...
           (loop for n in neg do
@@ -182,19 +186,20 @@ the matrix.
 
 **** DONE Removal
 
-Delete every row from the matrix who belonged to ~Pos~ or ~Neg~.
-The only rows not used at this point (and thus, the rows that must remain) are those
-that had a coefficient of zero on $x_i$ to begin with. So, the new matrix will be the
-union of the following: rows from the original with the mentioned zero coefficient, 
-and the result of ~compare~.
+Delete every row from the matrix who belonged to ~Pos~ or ~Neg~.  The
+only rows not used at this point (and thus, the rows that must remain)
+are those that had a coefficient of zero on $x_i$ to begin with. So,
+the new matrix will be the union of the following: rows from the
+original with the mentioned zero coefficient, and the result of
+~compare~.
 
-At the end of each comparison and removal, the matrix present represents a set of 
-equalities and inequalities with $x_i$ eliminated.
+At the end of each comparison and removal, the matrix present
+represents a set of equalities and inequalities with $x_i$ eliminated.
 
 #+BEGIN_SRC lisp
-(defun removal (C xi)
+(defun removal (C xi) ; DEPRECATED; post-compare garbage collection ought to handle this
     (if C
-        (if (eql 0.0 (aref (car C) xi))
+        (if (zerop (aref (car C) xi))
             (cons (car C) (removal (cdr C) xi)) ; keep it, continue to the rest
             (removal (cdr C) xi)) ; toss it, continue to the rest
         nil))
@@ -203,16 +208,11 @@ equalities and inequalities with $x_i$ eliminated.
 #+RESULTS:
 : REMOVAL
 
-And finally, the whole elimination step for one variable:
-(thought: how can we best keep track of number of equations in C? discuss monday)
+And finally, the whole elimination step for one variable: (thought:
+how can we best keep track of number of equations in C? discuss
+monday)
 
-#+BEGIN_SRC lisp
-(defun eliminate (C xi)  ; order is clearly important here
-    (append (compare C xi) (removal C xi)))
-#+END_SRC
 
-#+RESULTS:
-: ELIMINATE
 
 *** Experiment
 #+BEGIN_SRC lisp
@@ -226,17 +226,17 @@ And finally, the whole elimination step for one variable:
 : VARS-TO-ELIM
 
 #+BEGIN_SRC lisp
-(defun project_v1 (C ne nv i)
+(defun project_rec (C nv i)
     (if (< (+ nv 1) i) ; if we're into the variables we're supposed to keep, stop
         C
-        (project_v1 (eliminate C i) ne nv (- i 1)))) ; elim a var, decrement i, keep going
+        (project_v1 (compare C i) nv (- i 1)))) ; elim a var, decrement i, keep going
 
-(defun project_v1_top (C ne nv)
-    (project_v1 C ne nv (- (length (car C)) 1)))
+(defun project_top (C nv)
+    (project_rec C nv (- (length (car C)) 1)))
 #+END_SRC
 
 #+RESULTS:
-: PROJECT_V1_TOP
+: PROJECT_TOP
 
 #+BEGIN_SRC lisp
 (defun redundancy-trim (C)
@@ -248,10 +248,19 @@ And finally, the whole elimination step for one variable:
 : REDUNDANCY-TRIM
 
 #+BEGIN_SRC lisp
+(defun gcd-row (row) ; thank Euclid for the GCD being associative
+    (let ((rowlist (loop for x across row collect x)))
+         (reduce (lambda (x y) (gcd x y)) rowlist)))
+
+#+END_SRC
+
+#+RESULTS:
+: GCD-ROW
+
+#+BEGIN_SRC lisp
 (defun divide-by-gcd (row)
-    (let ((d (gcd (apply #'values (loop for x across row collect x)))))
-         (divide-row row d)))
-         
+         (progn (divide-row row (gcd-row row)) ; row your boat
+                row))
 
 (defun coeff-reduction (C)
     (if C
@@ -263,35 +272,47 @@ And finally, the whole elimination step for one variable:
 #+RESULTS:
 : COEFF-REDUCTION
 
+#+BEGIN_SRC lisp
+(equalp #(1 3 2 10) (let ((row (divide-by-gcd #(3 9 6 30)))) row))
+
+#+END_SRC
+
+#+RESULTS:
+: NIL
+
 
 
 ** Project
 
 #+BEGIN_SRC lisp
 (defun project (C ne nv)
-    (redundancy-trim (coeff-reduction (project_v1_top C ne nv))))
+    (let ((Cprime (eliminate-equations C ne nv)))
+         (redundancy-trim (coeff-reduction (project_top Cprime nv)))))
 #+END_SRC
 
 #+RESULTS:
 : PROJECT
+
+#+BEGIN_SRC lisp
+(defun project_test (C ne nv)
+    (let ((Cprime (eliminate-equations C ne nv)))
+         (project_top Cprime nv)))
+
+#+END_SRC
+
+#+RESULTS:
+: PROJECT_TEST
 
 
 #+BEGIN_SRC lisp :session :results output
   (let ((param '(1 2 2 2))
         (generator #'gen-at-least))
     (multiple-value-bind (C ne nv) (apply generator param)
-      (project C ne nv) 0 nv))
+      (project_test C ne nv) 0 nv))
 #+END_SRC
 
 #+RESULTS:
-: 4 2
-: (#(0 -1 0 0 1 2 0 0 0) #(1 0 0 1 1 1 0 0 0) #(0 0 -1 0 0 0 0 1 2)
-:  #(1 0 0 0 0 0 1 1 1) #(1 0 0 0 0 1 0 0 1) #(0 0 0 1 0 0 0 0 0)
-:  #(-1 0 0 -1 0 0 0 0 0) #(0 0 0 0 1 0 0 0 0) #(-1 0 0 0 -1 0 0 0 0)
-:  #(0 0 0 0 0 1 0 0 0) #(-1 0 0 0 0 -1 0 0 0) #(0 0 0 0 0 0 1 0 0)
-:  #(-1 0 0 0 0 0 -1 0 0) #(0 0 0 0 0 0 0 1 0) #(-1 0 0 0 0 0 0 -1 0)
-:  #(0 0 0 0 0 0 0 0 1) #(-1 0 0 0 0 0 0 0 -1))
-#+END_SRC
+================#+END_SRC
 
 
 #+BEGIN_COMMENT
