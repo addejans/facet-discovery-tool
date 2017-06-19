@@ -229,7 +229,7 @@ monday)
 (defun project_rec (C nv i)
     (if (< (+ nv 1) i) ; if we're into the variables we're supposed to keep, stop
         C
-        (project_v1 (compare C i) nv (- i 1)))) ; elim a var, decrement i, keep going
+        (project_rec (compare C i) nv (- i 1)))) ; elim a var, decrement i, keep going
 
 (defun project_top (C nv)
     (project_rec C nv (- (length (car C)) 1)))
