@@ -36,7 +36,7 @@ Eliminate variables from the system using the ~ne~ equations.
 
 This function assumes the user is not an idiot.  We need to fix this
 eventually.
-#+BEGIN_SRC lisp 
+#+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun first-non-zero (row nv)
     "First non-zero position past nv."
     (do ((i (1+ nv) (1+ i)))
@@ -53,7 +53,7 @@ eventually.
 #+RESULTS:
 : T
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun zero-out (dest source pos)
     "In-place, update the destination if coefficient at pos is non-zero."
     (when (not (zerop (aref dest pos)))
@@ -74,7 +74,7 @@ eventually.
 : T
 
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun kaplusb (k a b)
     (dotimes (i (length a) b)
       (incf (aref b i) (* k (aref a i)))))
@@ -91,7 +91,7 @@ eventually.
 : NIL
 
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun eliminate-equations (C ne nv)
     (do ((i 0 (1+ i))
          (row (car C) (car C))
@@ -117,7 +117,7 @@ options: 1, -1, or zero.
 (This process can definitely be its own function but its efficiency
 may need to be considered.)
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun divide-row (row divisor)
     (loop for i from 0 below (length row)
              do (setf (aref row i) (/ (aref row i) divisor)))) ; ditch this double aref!
@@ -125,7 +125,8 @@ may need to be considered.)
 (defun normalize-row (row pos)
     (let ((a (abs (aref row pos))))
      (when (not (zerop a))
-         (divide-row row a)))) 
+         (divide-row row a)))
+row) 
 
 (defun normalize (C pos)
     (map 'list (lambda (x) (normalize-row x pos)) C))
@@ -135,6 +136,15 @@ may need to be considered.)
 
 #+RESULTS:
 : NORMALIZE
+
+#+BEGIN_SRC lisp
+  (let ((C '( #(0 1 5 2) #(0 1 -4 3))))
+    (normalize  C 2))
+#+END_SRC
+
+#+RESULTS:
+| 0 | 1/5 |  1 | 2/5 |
+| 0 | 1/4 | -1 | 3/4 |
 
 *** DONE Partition and Compare
 
@@ -147,16 +157,16 @@ coefficient on $x_i$. The parameter ~xi~ is the address of the
 coefficient on $x_i$ in ~C~ and probably needs to be renamed for
 better readability.
 
-#+BEGIN_SRC lisp
-(defun partition (C xi)
-    (loop for row in C
-      if (< (aref row xi) 0)
-      collect row into neg          ; kind of a nasty hack, there
-      else if (> (aref row xi) 0)   ; may be a better way to
-      collect row into pos          ; go about the partitioning
-      else if (zerop (aref row xi))
-      collect row into naught
-      finally (return (values pos neg naught))))
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+  (defun partition (C xi)
+    (normalize C xi)
+    (let ((pos)
+          (neg)
+          (naught))
+      (dolist (row C (values (nreverse pos) (nreverse neg) (nreverse naught)))
+        (cond ((minusp (aref row xi)) (push row neg))
+              ((plusp (aref row xi)) (push row pos))
+              (t (push row naught))))))
 
 #+END_SRC
 
@@ -164,25 +174,43 @@ better readability.
 : PARTITION
 
 
-**** DONE Compare
+**** DONE Zeroing out the variable being eliminated
 
 For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~
 and $n_i \in$ ~Neg~, take the sum (row addition in the matrix). Append
 the resulting inequality to the matrix.
 
-#+BEGIN_SRC lisp
-(defun compare (C xi)
-    (multiple-value-bind (pos neg naught) (partition C xi)
-      (let ((res naught))
-      (progn
-        (loop for p in pos do ; there MUST be a better way...
-          (loop for n in neg do
-          (cons (map 'vector + p n) res)))
-        res))))
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+  (defun eliminate (C xi)
+      (multiple-value-bind (pos neg naught) (partition C xi)
+        (dolist (p pos naught)
+          (dolist (n neg)
+            (push (map 'vector #'+ p n) naught)))))))
 #+END_SRC
 
 #+RESULTS:
-: COMPARE
+: ELIMINATE
+
+#+BEGIN_SRC lisp :results output
+  (let ((C '(#(0 1 5 2) #(0 1 0 5) #(0 1 -4 -1))))
+    (multiple-value-bind (P N Z) (partition C 2)
+      (format t "~&+:~a~&-:~a~&z:~a" P N Z)
+      ))
+#+END_SRC
+
+#+RESULTS:
+: +:(#(0 1/5 1 2/5))
+: -:(#(0 1/4 -1 -1/4))
+: z:(#(0 1 0 5))
+
+#+BEGIN_SRC lisp :results output
+  (let ((C '(#(0 1 5 2) #(6 1 1 5) #(0 1 0 5) #(0 1 -4 -1))))
+      (format t "~&~a" (eliminate C 2))
+      )
+#+END_SRC
+
+#+RESULTS:
+: (#(6 5/4 0 19/4) #(0 9/20 0 3/20) #(0 1 0 5))
 
 **** DONE Removal
 
@@ -215,7 +243,7 @@ monday)
 
 
 *** Experiment
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun vars-to-elim (C nv) ; returns a sequence of the positions of variables 
                            ; to be eliminated, currently right to left
         (reverse (number-sequence (+ nv 1) (- (length (car C)) 1))))
@@ -225,20 +253,25 @@ monday)
 #+RESULTS:
 : VARS-TO-ELIM
 
-#+BEGIN_SRC lisp
-(defun project_rec (C nv i)
-    (if (< (+ nv 1) i) ; if we're into the variables we're supposed to keep, stop
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+  (defun eliminate-all (C nv &optional (i (1- (length (car C)))))
+    (if (= i nv)
         C
-        (project_rec (compare C i) nv (- i 1)))) ; elim a var, decrement i, keep going
-
-(defun project_top (C nv)
-    (project_rec C nv (- (length (car C)) 1)))
+        (eliminate-all (eliminate C i) nv (1- i))))
 #+END_SRC
 
 #+RESULTS:
-: PROJECT_TOP
+: ELIMINATE-ALL
 
 #+BEGIN_SRC lisp
+  (let ((C '( #(0 1 5 4) #(0 1 -4 -3))))
+    (eliminate-all C 2))
+#+END_SRC
+
+#+RESULTS:
+| 0 | 7/12 | -1/12 | 0 |
+
+#+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun redundancy-trim (C)
     (remove-duplicates C :test #'equalp))
 
@@ -247,7 +280,7 @@ monday)
 #+RESULTS:
 : REDUNDANCY-TRIM
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun gcd-row (row) ; thank Euclid for the GCD being associative
     (let ((rowlist (loop for x across row collect x)))
          (reduce (lambda (x y) (gcd x y)) rowlist)))
@@ -257,7 +290,7 @@ monday)
 #+RESULTS:
 : GCD-ROW
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun divide-by-gcd (row)
          (progn (divide-row row (gcd-row row)) ; row your boat
                 row))
@@ -284,36 +317,75 @@ monday)
 
 ** Project
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun project (C ne nv)
     (let ((Cprime (eliminate-equations C ne nv)))
-         (redundancy-trim (coeff-reduction (project_top Cprime nv)))))
+         (redundancy-trim (coeff-reduction (eliminate-all Cprime nv)))))
 #+END_SRC
 
 #+RESULTS:
 : PROJECT
 
 #+BEGIN_SRC lisp
-(defun project_test (C ne nv)
+(defun project-test (C ne nv)
     (let ((Cprime (eliminate-equations C ne nv)))
-         (project_top Cprime nv)))
+         (eliminate-all Cprime nv)))
 
 #+END_SRC
 
 #+RESULTS:
-: PROJECT_TEST
+: PROJECT-TEST
 
 
-#+BEGIN_SRC lisp :session :results output
+#+BEGIN_SRC lisp :session 
   (let ((param '(1 2 2 2))
         (generator #'gen-at-least))
     (multiple-value-bind (C ne nv) (apply generator param)
-      (project_test C ne nv) 0 nv))
+      (project-test C ne nv)))
 #+END_SRC
 
 #+RESULTS:
-================#+END_SRC
+|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |    1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| -3/2 | -1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| -1/2 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| -1/2 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|   -2 |   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|   -1 | -1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |    0 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    1 |  1/2 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    1 |    1 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
+|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |    1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |    0 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| -3/2 |    0 | -1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| -1/2 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
+
+-1 <= 0
+0 <= 1/2 x1
+0 <= x1
+-3/2 <= -1/2 x1  ==> x1 <= 3
+-1/2 <= 0
+-1/2 <= 1/2 x1 ==> -1 <= x1
+-2 <= x1
+-1 <= -1/2 x1 ==> x1 <= 2  *******
+-1 <= 0
+0 <= 1/2 x2
+1 <= 1/2 x1 + 1/2 x2  ==> 2 <= x1 + x2 ****
+-1 <= 0
+0 <= 1/2 x1
+0 <= x1
+-1 <= 0
+0 <= 0
+0 <= 1/2 x2
+-3/2 <= -1/2 x2 ==> x2 <= 3
+-1/2 <= 0
 
 #+BEGIN_COMMENT
 #### at_least_1(x_1,...,x_2) = 2  ; x_i in [0,..,2]

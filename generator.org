@@ -195,7 +195,7 @@ end the next ~m-me~ rows are
 The nv is the number of variables considered 'real', i.e. the $x_1,
 \ldots, x_n$ in this case.
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "generator.lisp"
   (defun gen-at-least (m n k l)
     (labels ((var-index (i j) (+ n 1 (* (1- i) (1+ l)) j)))
     (let ((I (loop :for i :from 1 :to n :collect i))
@@ -261,7 +261,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
     :PROPERTIES:
     :ID:       18205b97-6f7e-4012-b7ed-cb77226c6155
     :END:
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "generator.lisp"
   (defun output-matrix (C ne nv)
     (let ((wc 4) (wi 2))
       (loop :for i from 0 :below (length C) :do
@@ -308,7 +308,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
     :PROPERTIES:
     :ID:       0eb97c76-8423-4bc9-8566-dba1cd739ad7
     :END:
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle "generator.lisp"
   (defun new-row (l)
     (make-array l :initial-element 0 :element-type 'rational))
 #+END_SRC
