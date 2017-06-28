@@ -128,7 +128,7 @@ eventually.
     (multiple-value-bind (C ne nv) (apply generator param)
       (facet-discovery-tool:output-matrix C ne nv)
       (format t "~&NEW~&")
-      (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-equations C 1 nv) 3 nv)))
+      (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-equations C ne nv) 0 nv)))
 
 
 #+END_SRC
@@ -153,20 +153,17 @@ eventually.
    0 <=                                                                 +1y( 8)
   -1 <=                                                                 -1y( 8)
 NEW
-   1  =  +1x( 1)           +1y( 3)           -1y( 5)                           
-   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
-   1  =                                               +1y( 6)  +1y( 7)  +1y( 8)
    1 <=                                      +1y( 5)                    +1y( 8)
-   0 <=                    +1y( 3)                                             
-  -1 <=                    -1y( 3)                                             
+  -1 <=  -1x( 1)                             +1y( 5)                           
+   0 <=  +1x( 1)                             -1y( 5)                           
    0 <=  +1x( 1)                             -2y( 5)                           
   -1 <=  -1x( 1)                             +2y( 5)                           
    0 <=                                      +1y( 5)                           
   -1 <=                                      -1y( 5)                           
-   0 <=                                               +1y( 6)                  
-  -1 <=                                               -1y( 6)                  
-   0 <=                                                        +1y( 7)         
-  -1 <=                                                        -1y( 7)         
+  -1 <=           -1x( 2)                                               +1y( 8)
+   0 <=           +1x( 2)                                               -1y( 8)
+   0 <=           +1x( 2)                                               -2y( 8)
+  -1 <=           -1x( 2)                                               +2y( 8)
    0 <=                                                                 +1y( 8)
   -1 <=                                                                 -1y( 8)
 #+end_example
@@ -440,7 +437,7 @@ monday)
 
 #+BEGIN_SRC lisp 
 (defun project-test (C ne nv)
-    (let ((Cprime (eliminate-equations C ne nv)))
+    (let ((Cprime (facet-discovery-tool:eliminate-equations C ne nv)))
          (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-all Cprime nv) 0 nv)))
 
 #+END_SRC
@@ -458,10 +455,6 @@ monday)
 
 #+RESULTS:
 #+begin_example
-Eliminating 4
-Eliminating 3
-Eliminating 7
-Eliminating 6
   -1 <=                                                                        
    0 <=1/2x( 1)                                                               
    0 <=  +1x( 1)                                                               
@@ -471,6 +464,15 @@ Eliminating 6
   -2 <=  -1x( 1)                                                               
   -1 <=-1/2x( 1)                                                               
   -1 <=                                                                        
+   0 <=           +1x( 2)                                                      
+   1 <=1/2x( 1)  +1x( 2)                                                      
+   1 <=  +1x( 1)  +1x( 2)                                                      
+   0 <=         1/2x( 2)                                                      
+   1 <=1/2x( 1)1/2x( 2)                                                      
+   1 <=  +1x( 1)1/2x( 2)                                                      
+  -1 <=                                                                        
+   0 <=1/2x( 1)                                                               
+   0 <=  +1x( 1)                                                               
   -1 <=                                                                        
    0 <=         1/2x( 2)                                                      
    0 <=           +1x( 2)                                                      
