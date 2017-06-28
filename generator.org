@@ -11,6 +11,9 @@
 (in-package #:facet-discovery-tool)
 #+END_SRC
 
+#+RESULTS:
+: #<PACKAGE "FACET-DISCOVERY-TOOL">
+
 ** An example
    :PROPERTIES:
    :ID:       1f90af9b-4a21-4759-ace6-001e517a21cd

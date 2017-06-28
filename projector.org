@@ -3,7 +3,15 @@
   :ID:       68f91b13-7003-4091-b3b0-55315e9d516c
   :END:
 
-** General structure
+** Preamble
+   :PROPERTIES:
+   :ID:       2456ed95-e292-4dcd-9c55-8104f2047047
+   :END:
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+(in-package #:facet-discovery-tool)
+#+END_SRC
+
+* General structure
    :PROPERTIES:
    :ID:       b929f0e7-13d9-48df-bfe7-6d3a5233927a
    :END:
@@ -47,11 +55,11 @@ eventually.
 : FIRST-NON-ZERO
 
 #+BEGIN_SRC lisp
-(equalp 7 (first-non-zero #(1 0 0 0 0 0 0 2 0 2 4) 1))
+(equalp 7 (first-non-zero #(1 0 0 0 0 0 0 2 0 2 4) 6))
 #+END_SRC
 
 #+RESULTS:
-: T
+: NIL
 
 #+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun zero-out (dest source pos)
@@ -94,7 +102,7 @@ eventually.
 #+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun eliminate-equations (C ne nv)
     (do ((i 0 (1+ i))
-         (row (car C) (car C))
+         (row (car C) (car (cdr C)))
          (C C (cdr C)))
         ((= i ne) C)
       (let ((pos (first-non-zero row nv)))
@@ -113,6 +121,76 @@ eventually.
 
 #+RESULTS:
 : T
+
+#+BEGIN_SRC lisp :results output
+  (let ((param '(1 2 2 2))
+        (generator #'gen-at-least))
+    (multiple-value-bind (C ne nv) (apply generator param)
+      (facet-discovery-tool:output-matrix C ne nv)
+      (format t "~&NEW~&")
+      (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-equations C 1 nv) 3 nv)))
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+   0  =  -1x( 1)                    +1y( 4)  +2y( 5)                           
+   1  =                    +1y( 3)  +1y( 4)  +1y( 5)                           
+   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
+   1  =                                               +1y( 6)  +1y( 7)  +1y( 8)
+   1 <=                                      +1y( 5)                    +1y( 8)
+   0 <=                    +1y( 3)                                             
+  -1 <=                    -1y( 3)                                             
+   0 <=                             +1y( 4)                                    
+  -1 <=                             -1y( 4)                                    
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+   0 <=                                               +1y( 6)                  
+  -1 <=                                               -1y( 6)                  
+   0 <=                                                        +1y( 7)         
+  -1 <=                                                        -1y( 7)         
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+NEW
+   1  =  +1x( 1)           +1y( 3)           -1y( 5)                           
+   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
+   1  =                                               +1y( 6)  +1y( 7)  +1y( 8)
+   1 <=                                      +1y( 5)                    +1y( 8)
+   0 <=                    +1y( 3)                                             
+  -1 <=                    -1y( 3)                                             
+   0 <=  +1x( 1)                             -2y( 5)                           
+  -1 <=  -1x( 1)                             +2y( 5)                           
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+   0 <=                                               +1y( 6)                  
+  -1 <=                                               -1y( 6)                  
+   0 <=                                                        +1y( 7)         
+  -1 <=                                                        -1y( 7)         
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+#+end_example
+
+#+COMMENT
+|  0 | -1 |  0 |  0 |  1 |  2 |  0 |  0 |  0 |
+|  1 |  0 |  0 |  1 |  1 |  1 |  0 |  0 |  0 |
+|  0 |  0 | -1 |  0 |  0 |  0 |  0 |  1 |  2 |
+|  1 |  0 |  0 |  0 |  0 |  0 |  1 |  1 |  1 |
+|  1 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  1 |
+|  0 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |  0 |
+| -1 |  0 |  0 | -1 |  0 |  0 |  0 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |
+| -1 |  0 |  0 |  0 | -1 |  0 |  0 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |
+| -1 |  0 |  0 |  0 |  0 | -1 |  0 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |
+| -1 |  0 |  0 |  0 |  0 |  0 | -1 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |
+| -1 |  0 |  0 |  0 |  0 |  0 |  0 | -1 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  1 |
+| -1 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | -1 |
+
+
 
 *** DONE Normalize
 
@@ -201,7 +279,7 @@ the resulting inequality to the matrix.
       (multiple-value-bind (pos neg naught) (partition C xi)
         (dolist (p pos naught)
           (dolist (n neg)
-            (push (map 'vector #'+ p n) naught)))))))
+            (push (map 'vector #'+ p n) naught)))))
 #+END_SRC
 
 #+RESULTS:
@@ -360,10 +438,10 @@ monday)
 #+RESULTS:
 : PROJECT
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp 
 (defun project-test (C ne nv)
     (let ((Cprime (eliminate-equations C ne nv)))
-         (eliminate-all Cprime nv)))
+         (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-all Cprime nv) 0 nv)))
 
 #+END_SRC
 
@@ -371,7 +449,7 @@ monday)
 : PROJECT-TEST
 
 
-#+BEGIN_SRC lisp :session 
+#+BEGIN_SRC lisp :session :results output
   (let ((param '(1 2 2 2))
         (generator #'gen-at-least))
     (multiple-value-bind (C ne nv) (apply generator param)
@@ -379,21 +457,30 @@ monday)
 #+END_SRC
 
 #+RESULTS:
-|   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|    0 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|    0 |    1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| -3/2 | -1/2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| -1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| -1/2 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -2 |   -1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 | -1/2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|    0 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|    0 |    1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+#+begin_example
+Eliminating 4
+Eliminating 3
+Eliminating 7
+Eliminating 6
+  -1 <=                                                                        
+   0 <=1/2x( 1)                                                               
+   0 <=  +1x( 1)                                                               
+-3/2 <=-1/2x( 1)                                                               
+-1/2 <=                                                                        
+-1/2 <=1/2x( 1)                                                               
+  -2 <=  -1x( 1)                                                               
+  -1 <=-1/2x( 1)                                                               
+  -1 <=                                                                        
+  -1 <=                                                                        
+   0 <=         1/2x( 2)                                                      
+   0 <=           +1x( 2)                                                      
+-3/2 <=         -1/2x( 2)                                                      
+-1/2 <=                                                                        
+-1/2 <=         1/2x( 2)                                                      
+  -2 <=           -1x( 2)                                                      
+  -1 <=         -1/2x( 2)                                                      
+  -1 <=                                                                        
+#+end_example
 
 
 |    0 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |

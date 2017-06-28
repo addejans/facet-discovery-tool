@@ -1,5 +1,6 @@
 ;;;; package.lisp
 
 (defpackage #:facet-discovery-tool
-  (:use #:cl))
+  (:use #:cl)
+  (:export :eliminate-all))
 
