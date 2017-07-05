@@ -60,7 +60,7 @@ eventually.
 
 #+RESULTS:
 : NIL
-
+A row operation that zeros out the destination at pos from the source at pos.  
 #+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun zero-out (dest source pos)
     "In-place, update the destination if coefficient at pos is non-zero."
@@ -81,7 +81,7 @@ eventually.
 #+RESULTS:
 : T
 
-
+A blas-type operator: k times 'row a' add to 'row b'.  
 #+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun kaplusb (k a b)
     (dotimes (i (length a) b)
@@ -98,7 +98,15 @@ eventually.
 #+RESULTS:
 : NIL
 
+Consider the first ~ne~ rows.  For each one, find the first non-zero
+coefficient in the 'additional' variables (not among the variables
+that we need to project on). It is assumed that there is such a
+non-zero coefficient. (What should we do if not?) Isolate that
+variable and substitute its expression into all subsequent rows.
 
+For instance given a row $1 = x_1 + y_1 + y2$, we isolate $y1 =
+1-x_1-y_2$ and substitute that into all other equations and
+inequalities.
 #+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun eliminate-equations (C ne nv)
     (do ((i 0 (1+ i))
@@ -126,11 +134,9 @@ eventually.
   (let ((param '(1 2 2 2))
         (generator #'gen-at-least))
     (multiple-value-bind (C ne nv) (apply generator param)
-      (facet-discovery-tool:output-matrix C ne nv)
+      (output-matrix C ne nv)
       (format t "~&NEW~&")
-      (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-equations C ne nv) 0 nv)))
-
-
+      (output-matrix (eliminate-equations C ne nv) 0 nv)))
 #+END_SRC
 
 #+RESULTS:
@@ -249,7 +255,6 @@ better readability.
         (cond ((minusp (aref row xi)) (push row neg))
               ((plusp (aref row xi)) (push row pos))
               (t (push row naught))))))
-
 #+END_SRC
 
 #+RESULTS:
@@ -271,6 +276,9 @@ For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~
 and $n_i \in$ ~Neg~, take the sum (row addition in the matrix). Append
 the resulting inequality to the matrix.
 
+I am thinking that we could do the redundency elimination separately
+on the sets pos neg and naught.  Because there is no way an inequality
+in one set is a multiple of one in another set.
 #+BEGIN_SRC lisp :tangle "projector.lisp"
   (defun eliminate (C xi)
       (multiple-value-bind (pos neg naught) (partition C xi)
@@ -365,7 +373,7 @@ monday)
 
 #+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun redundancy-trim (C)
-    (remove-duplicates C :test #'equalp))
+    (remove-duplicates C :test #'row-multiple-p))
 
 #+END_SRC
 
@@ -433,7 +441,7 @@ monday)
 
 #+BEGIN_SRC lisp
 (and (trivial-row-p #(-1 0 0 0 0))
-(not (trivial-row-p #(1 0 0 0 0))))
+ (trivial-row-p #(-2 0 0 0 0)))
 
 #+END_SRC
 
@@ -459,23 +467,39 @@ monday)
 
 #+RESULTS:
 : T
-
+For now, we are doing this just to check.  The logic should be that we do this after every variable elimination and we do not go past the last column eliminated.  
 #+BEGIN_SRC lisp :tangle "projector.lisp"
-(defun row-multiple-p (row1 row2)
-  (let ((row-ratios (loop for x across row1 for y across row2 collect (/ x y))))
-       (apply #'= row-ratios)))
+  (defun row-multiple-p (row1 row2)
+    "True iff one is a multiple of the other."
+    (let ((ratio))
+      (do*  ((i 0 (1+ i))
+             (a (aref row1 i) (aref row1 i))
+             (b (aref row2 i) (aref row2 i)))
+            ((= (1- (length row1)) i) t)
+        (cond ((and (zerop a) (not (zerop b))) (return nil))
+              ((and (zerop b) (not (zerop a))) (return nil))
+              ((and (zerop a) (zerop b)))
+              ((null ratio) (setq ratio (/ a b)))
+              ((not (= ratio (/ a b))) (return nil))))))
 #+END_SRC
 
 #+RESULTS:
 : ROW-MULTIPLE-P
 
 #+BEGIN_SRC lisp
-(row-ratio-p #(1 2 3 4) #(2 4 6 8))
-
+(row-multiple-p #(1 0 4 0) #(2 0 8 0) 3)
 #+END_SRC
 
 #+RESULTS:
 : T
+
+#+BEGIN_SRC lisp
+(row-multiple-p #(1 0 3 4) #(2 4 6 8))
+
+#+END_SRC
+
+#+RESULTS:
+: NIL
 
 #+BEGIN_SRC lisp :tangle "projector.lisp"
 (defun has-multiple-p (C)
@@ -521,8 +545,8 @@ monday)
 
 #+BEGIN_SRC lisp 
 (defun project-test (C ne nv)
-    (let ((Cprime (facet-discovery-tool:eliminate-equations C ne nv)))
-         (facet-discovery-tool:output-matrix (facet-discovery-tool:eliminate-all Cprime nv) 0 nv)))
+    (let ((Cprime (eliminate-equations C ne nv)))
+         (output-matrix (redundancy-trim (redun-trivial (eliminate-all Cprime nv))) 0 nv)))
 
 #+END_SRC
 
@@ -538,6 +562,26 @@ monday)
 #+END_SRC
 
 #+RESULTS:
+#+begin_example
+-3/2 <=-1/2x( 1)                                                               
+-1/2 <=1/2x( 1)                                                               
+  -1 <=-1/2x( 1)                                                               
+   1 <=1/2x( 1)  +1x( 2)                                                      
+   1 <=  +1x( 1)  +1x( 2)                                                      
+   1 <=1/2x( 1)1/2x( 2)                                                      
+   1 <=  +1x( 1)1/2x( 2)                                                      
+   0 <=  +1x( 1)                                                               
+   0 <=           +1x( 2)                                                      
+-3/2 <=         -1/2x( 2)                                                      
+-1/2 <=         1/2x( 2)                                                      
+  -1 <=         -1/2x( 2)                                                      
+#+end_example
+
+
+
+
+
+#+COMMENT:
 #+begin_example
   -1 <=                                                                        
    0 <=1/2x( 1)                                                               
