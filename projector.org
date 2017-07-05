@@ -422,6 +422,90 @@ monday)
 #+RESULTS:
 : T
 
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+(defun trivial-row-p (row)
+  (reduce (lambda (x y) (and x y)) (map 'vector #'zerop row) :start 1))
+
+#+END_SRC
+
+#+RESULTS:
+: TRIVIAL-ROW-P
+
+#+BEGIN_SRC lisp
+(and (trivial-row-p #(-1 0 0 0 0))
+(not (trivial-row-p #(1 0 0 0 0))))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+(defun redun-trivial (C)
+  (cond ((null C) nil)
+        ((trivial-row-p (car C)) (redun-trivial (cdr C)))
+        (T (cons (car C) (redun-trivial (cdr C))))))
+
+#+END_SRC
+
+#+RESULTS:
+: REDUN-TRIVIAL
+
+#+BEGIN_SRC lisp
+(equalp (redun-trivial '(#(0 1 2 3 4) #(-1 0 0 0 0) #(0 0 0 0 0) #(1 1 1 1 1)))
+    '(#(0 1 2 3 4) #(1 1 1 1 1)))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+(defun row-multiple-p (row1 row2)
+  (let ((row-ratios (loop for x across row1 for y across row2 collect (/ x y))))
+       (apply #'= row-ratios)))
+#+END_SRC
+
+#+RESULTS:
+: ROW-MULTIPLE-P
+
+#+BEGIN_SRC lisp
+(row-ratio-p #(1 2 3 4) #(2 4 6 8))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+(defun has-multiple-p (C)
+  (if (and C (cdr C))
+      (let ((row1 (car C)))
+        (reduce (lambda (x y) (or x y)) 
+          (mapcar (lambda (r) (row-multiple-p r row1)) (cdr C))))
+      nil))
+
+#+END_SRC
+
+#+RESULTS:
+: HAS-MULTIPLE-P
+
+#+BEGIN_SRC lisp
+(has-multiple-p '(#(1 2 3 4) #(1 1 1 1) #(2 4 6 8)))
+
+#+END_SRC
+
+#+BEGIN_SRC lisp :tangle "projector.lisp"
+(defun redun-multiple (C)
+  (if (has-multiple-p C)
+      (redun-multiple (cdr C))
+      (cons (car C) (redun-multiple (cdr C)))))
+                                      
+
+#+END_SRC
+
+#+RESULTS:
+: REDUN-MULTIPLE
 
 
 ** Project
