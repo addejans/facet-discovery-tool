@@ -2,5 +2,7 @@
 
 (defpackage #:facet-discovery-tool
   (:use #:cl)
-  (:export :eliminate-all))
+  (:export :eliminate-all
+           :eliminate-equations
+           :output-matrix))
 
