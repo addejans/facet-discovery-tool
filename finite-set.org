@@ -1,0 +1,74 @@
+* Finite sets utilities
+
+These are for use in the redundancy elimination.  We need to have a structure to handle sets of fixed maximal length (equal to the number of initial inequalities).  The required operations will be
+- Set creation (maximal length)
+- Set union (when a new inequality is created from two others)
+- Test for set inclusion (this is the test of redundancy)
+
+** Data structure
+It seems to me that a bit-vector is appropriate. We will assume that
+the elements are $0$ to $n-1$. We can initialize a set by setting it
+to be a set of one element. This is useful for our application as, at
+set creation each set represent one inequality.
+#+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
+  (defun make-finite-set (n &optional (element nil))
+    (let ((s (make-array n :element-type 'bit)))
+      (when element (setf (bit s element) 1))
+      s))
+#+END_SRC
+
+#+RESULTS:
+: MAKE-FINITE-SET
+
+A small test
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equal #*000100000000  (make-finite-set 12 3))
+#+END_SRC
+
+#+RESULTS:
+: T
+
+** Set union
+We need union of two sets creating a new set when we create a new
+inequality from two old ones.
+#+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
+  (defun finite-set-union (a b)
+    (let ((c (make-finite-set (length a))))
+      (bit-ior a b c)))
+#+END_SRC
+
+#+RESULTS:
+: FINITE-SET-UNION
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equal #*000100100000 (finite-set-union (make-finite-set 12 3) (make-finite-set 12 6)))
+#+END_SRC
+
+#+RESULTS:
+: T
+
+** Set inclusion predicate
+To know if an inequality is redundant, we need to check if its set is
+a superset of another one. So is a set is strictly included in
+another, the inequality corresponding to the larger set is redundant.
+
+#+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
+  (defun finite-set-included-p (smaller larger)
+    (equal (make-finite-set (length smaller)) (bit-andc2 smaller larger)))
+#+END_SRC
+
+#+RESULTS:
+: FINITE-SET-INCLUDED-P
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+  (let* ((a (make-finite-set 12 3))
+         (b (make-finite-set 12 5))
+         (c (make-finite-set 12 7))
+         (d (finite-set-union a b))
+         (e (finite-set-union c (finite-set-union a b))))
+    (finite-set-included-p d e))
+#+END_SRC
+
+#+RESULTS:
+: T
+
