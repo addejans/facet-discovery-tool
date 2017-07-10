@@ -28,6 +28,23 @@ A small test
 #+RESULTS:
 : T
 
+** Size
+Maybe we need this
+#+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
+  (defun finite-set-size (a)
+    (length a))
+#+END_SRC
+
+#+RESULTS:
+: FINITE-SET-SIZE
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(finite-set-size (make-finite-set 12 4))
+#+END_SRC
+
+#+RESULTS:
+: 12
+
 ** Set union
 We need union of two sets creating a new set when we create a new
 inequality from two old ones.
