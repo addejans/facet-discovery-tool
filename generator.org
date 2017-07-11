@@ -11,6 +11,9 @@
 (in-package #:facet-discovery-tool)
 #+END_SRC
 
+#+RESULTS:
+: #<PACKAGE "FACET-DISCOVERY-TOOL">
+
 ** An example
    :PROPERTIES:
    :ID:       1f90af9b-4a21-4759-ace6-001e517a21cd
@@ -41,7 +44,8 @@ variable.
 
 We will start with a simple-minded version that will printout the
 formulation.
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun output-at-least (m n k l)
     (format t "#### at_least_~d(x_1,...,x_~d) = ~d  ; x_i in [0,..,~d]~&" m n k l)
     (let ((I (loop :for i :from 1 :to n :collect i))
@@ -72,7 +76,7 @@ formulation.
     :PROPERTIES:
     :ID:       dca5cfdf-fe59-4ca9-9c3d-bc105e419c9e
     :END:
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp :results output :package facet-discovery-tool
 (output-at-least 2 3 3 4)
 #+END_SRC
 
@@ -131,7 +135,7 @@ parameter domains. It expands, for example ~((1 2) (5 7))~ which
 indicates two parameters, the first with domain $[1,2]$ and the second
 with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 7))~. Each one of those will be an instance to generate.
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun range-to-list (param)
     "Param could be one of three forms (a) (a b) (a b c ... d). We
   expand the second into the third if a < b+1."
@@ -145,7 +149,7 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 
 
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :package facet-discovery-tool
 (list (range-to-list '(3)) (range-to-list '(3 4 5)) (range-to-list '(3 7)))
 #+END_SRC
 
@@ -155,7 +159,7 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 | 3 | 4 | 5 | 6 | 7 |
 
 
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool 
   (defun generate-param-list (params)
     (if (= 1 (length params))
         (mapcar #'list (range-to-list (car params)))
@@ -168,7 +172,7 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 #+RESULTS:
 : GENERATE-PARAM-LIST
 
-#+BEGIN_SRC lisp 
+#+BEGIN_SRC lisp :package facet-discovery-tool
 (generate-param-list '((2) (3 6) (7 8)))
 #+END_SRC
 
@@ -195,7 +199,7 @@ end the next ~m-me~ rows are
 The nv is the number of variables considered 'real', i.e. the $x_1,
 \ldots, x_n$ in this case.
 
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun gen-at-least (m n k l)
     (labels ((var-index (i j) (+ n 1 (* (1- i) (1+ l)) j)))
     (let ((I (loop :for i :from 1 :to n :collect i))
@@ -233,7 +237,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
 #+RESULTS:
 : GEN-AT-LEAST
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :package facet-discovery-tool
 (gen-at-least 1 2 2 2)
 #+END_SRC
 
@@ -261,7 +265,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
     :PROPERTIES:
     :ID:       18205b97-6f7e-4012-b7ed-cb77226c6155
     :END:
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun output-matrix (C ne nv)
     (let ((wc 4) (wi 2))
       (loop :for i from 0 :below (length C) :do
@@ -276,7 +280,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
 #+RESULTS:
 : OUTPUT-MATRIX
 
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp :results output :package facet-discovery-tool
   (multiple-value-bind (C ne nv)
       (gen-at-least 1 2 2 2)
     (output-matrix C ne nv))
@@ -308,7 +312,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
     :PROPERTIES:
     :ID:       0eb97c76-8423-4bc9-8566-dba1cd739ad7
     :END:
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun new-row (l)
     (make-array l :initial-element 0 :element-type 'rational))
 #+END_SRC
@@ -324,7 +328,7 @@ The  driver of the generator accepts a list of parameters with their
 domains, along with a function that does the generating.  From this it
 generates all the instances of all parameters' domains and outputs
 into a subdirectory of instances.
-#+BEGIN_SRC lisp :tangle "generator.lisp"
+#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun generate-instances-and-output (params generator &optional (filename "instance"))
     (dolist (param (generate-param-list params))
       (with-open-file (out (format nil "./instances/~a~{-~d~}" filename param)
@@ -339,7 +343,7 @@ into a subdirectory of instances.
 #+RESULTS:
 : GENERATE-INSTANCES-AND-OUTPUT
 
-#+BEGIN_SRC lisp :session :results output
+#+BEGIN_SRC lisp :session :results output :package facet-discovery-tool
 (generate-instances-and-output '((1 3) (5 6) (1 3) (7 8)) #'gen-at-least "at-least")
 #+END_SRC
 

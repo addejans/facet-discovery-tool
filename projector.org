@@ -3,7 +3,15 @@
   :ID:       68f91b13-7003-4091-b3b0-55315e9d516c
   :END:
 
-** General structure
+** Preamble
+   :PROPERTIES:
+   :ID:       2456ed95-e292-4dcd-9c55-8104f2047047
+   :END:
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+(in-package #:facet-discovery-tool)
+#+END_SRC
+
+* General structure
    :PROPERTIES:
    :ID:       b929f0e7-13d9-48df-bfe7-6d3a5233927a
    :END:
@@ -36,7 +44,7 @@ Eliminate variables from the system using the ~ne~ equations.
 
 This function assumes the user is not an idiot.  We need to fix this
 eventually.
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun first-non-zero (row nv)
     "First non-zero position past nv."
     (do ((i (1+ nv) (1+ i)))
@@ -46,14 +54,14 @@ eventually.
 #+RESULTS:
 : FIRST-NON-ZERO
 
-#+BEGIN_SRC lisp
-(equalp 7 (first-non-zero #(1 0 0 0 0 0 0 2 0 2 4) 1))
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp 7 (first-non-zero #(1 0 0 0 0 0 0 2 0 2 4) 6))
 #+END_SRC
 
 #+RESULTS:
-: T
-
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+: NIL
+A row operation that zeros out the destination at pos from the source at pos.  
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun zero-out (dest source pos)
     "In-place, update the destination if coefficient at pos is non-zero."
     (when (not (zerop (aref dest pos)))
@@ -66,15 +74,15 @@ eventually.
 #+RESULTS:
 : ZERO-OUT
 
-#+BEGIN_SRC lisp
-(equalp #(11 1 4 0) (zero-out #(6 0 2 1) #(5 1 2 -1) 3))
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp #(11 1 4 0) (zero-out #(6 0 2 1) #(5 1 2 -1) 3)) 
 #+END_SRC
 
 #+RESULTS:
 : T
 
-
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+A blas-type operator: k times 'row a' add to 'row b'.  
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun kaplusb (k a b)
     (dotimes (i (length a) b)
       (incf (aref b i) (* k (aref a i)))))
@@ -83,18 +91,26 @@ eventually.
 #+RESULTS:
 : KAPLUSB
 
-#+BEGIN_SRC lisp
-(equalp #(2 4 7) (let ((dest #(0 0 1))) (kaplusb 2 #(1 2 3) dest) dest))
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp #(2 4 7) (let ((dest #(0 0 1))) (kaplusb 2 #(1 2 3) dest) dest)) 
 #+END_SRC
 
 #+RESULTS:
 : NIL
 
+Consider the first ~ne~ rows.  For each one, find the first non-zero
+coefficient in the 'additional' variables (not among the variables
+that we need to project on). It is assumed that there is such a
+non-zero coefficient. (What should we do if not?) Isolate that
+variable and substitute its expression into all subsequent rows.
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+For instance given a row $1 = x_1 + y_1 + y2$, we isolate $y1 =
+1-x_1-y_2$ and substitute that into all other equations and
+inequalities.
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun eliminate-equations (C ne nv)
     (do ((i 0 (1+ i))
-         (row (car C) (car C))
+         (row (car C) (car (cdr C)))
          (C C (cdr C)))
         ((= i ne) C)
       (let ((pos (first-non-zero row nv)))
@@ -105,6 +121,79 @@ eventually.
 
 #+RESULTS:
 : ELIMINATE-EQUATIONS
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp '(#(0 4 2 0 5)) (let ((C '(#(0 1 0 -1 0) #(0 1 2 3 5))))
+    (eliminate-equations C 1 2)))
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :results output :package facet-discovery-tool
+  (let ((param '(1 2 2 2))
+        (generator #'gen-at-least))
+    (multiple-value-bind (C ne nv) (apply generator param)
+      (output-matrix C ne nv)
+      (format t "~&NEW~&")
+      (output-matrix (eliminate-equations C ne nv) 0 nv)))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+   0  =  -1x( 1)                    +1y( 4)  +2y( 5)                           
+   1  =                    +1y( 3)  +1y( 4)  +1y( 5)                           
+   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
+   1  =                                               +1y( 6)  +1y( 7)  +1y( 8)
+   1 <=                                      +1y( 5)                    +1y( 8)
+   0 <=                    +1y( 3)                                             
+  -1 <=                    -1y( 3)                                             
+   0 <=                             +1y( 4)                                    
+  -1 <=                             -1y( 4)                                    
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+   0 <=                                               +1y( 6)                  
+  -1 <=                                               -1y( 6)                  
+   0 <=                                                        +1y( 7)         
+  -1 <=                                                        -1y( 7)         
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+NEW
+   1 <=                                      +1y( 5)                    +1y( 8)
+  -1 <=  -1x( 1)                             +1y( 5)                           
+   0 <=  +1x( 1)                             -1y( 5)                           
+   0 <=  +1x( 1)                             -2y( 5)                           
+  -1 <=  -1x( 1)                             +2y( 5)                           
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+  -1 <=           -1x( 2)                                               +1y( 8)
+   0 <=           +1x( 2)                                               -1y( 8)
+   0 <=           +1x( 2)                                               -2y( 8)
+  -1 <=           -1x( 2)                                               +2y( 8)
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+#+end_example
+
+#+COMMENT
+|  0 | -1 |  0 |  0 |  1 |  2 |  0 |  0 |  0 |
+|  1 |  0 |  0 |  1 |  1 |  1 |  0 |  0 |  0 |
+|  0 |  0 | -1 |  0 |  0 |  0 |  0 |  1 |  2 |
+|  1 |  0 |  0 |  0 |  0 |  0 |  1 |  1 |  1 |
+|  1 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  1 |
+|  0 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |  0 |
+| -1 |  0 |  0 | -1 |  0 |  0 |  0 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |
+| -1 |  0 |  0 |  0 | -1 |  0 |  0 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |
+| -1 |  0 |  0 |  0 |  0 | -1 |  0 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |
+| -1 |  0 |  0 |  0 |  0 |  0 | -1 |  0 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |
+| -1 |  0 |  0 |  0 |  0 |  0 |  0 | -1 |  0 |
+|  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  1 |
+| -1 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | -1 |
+
+
 
 *** DONE Normalize
 
@@ -117,7 +206,7 @@ options: 1, -1, or zero.
 (This process can definitely be its own function but its efficiency
 may need to be considered.)
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun divide-row (row divisor)
     (loop for i from 0 below (length row)
              do (setf (aref row i) (/ (aref row i) divisor)))) ; ditch this double aref!
@@ -137,14 +226,13 @@ row)
 #+RESULTS:
 : NORMALIZE
 
-#+BEGIN_SRC lisp
-  (let ((C '( #(0 1 5 2) #(0 1 -4 3))))
-    (normalize  C 2))
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (let ((C '( #(0 1 5 2) #(0 1 -4 3)))) (normalize  C 2)) '(#(0 1/5 1 2/5)
+#(0 1/4 -1 3/4)))
 #+END_SRC
 
 #+RESULTS:
-| 0 | 1/5 |  1 | 2/5 |
-| 0 | 1/4 | -1 | 3/4 |
+: T
 
 *** DONE Partition and Compare
 
@@ -157,21 +245,40 @@ coefficient on $x_i$. The parameter ~xi~ is the address of the
 coefficient on $x_i$ in ~C~ and probably needs to be renamed for
 better readability.
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun partition (C xi)
     (normalize C xi)
     (let ((pos)
           (neg)
           (naught))
-      (dolist (row C (values (nreverse pos) (nreverse neg) (nreverse naught)))
+      (dolist (row C (values (redundancy-trim pos)
+                             (redundancy-trim neg) 
+                             (redundancy-trim naught)))
         (cond ((minusp (aref row xi)) (push row neg))
               ((plusp (aref row xi)) (push row pos))
               (t (push row naught))))))
-
 #+END_SRC
 
 #+RESULTS:
 : PARTITION
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (partition '( #(1 2 3 4) #(1 2 -3 4) #(1 2 0 4)) 2)
+(values '( #(1/3 2/3 1 4/3) ) '( #(1/3 2/3 -1 4/3)) '( #(1 2 0 4))))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (partition '( #(1 2 3 4) #(2 4 6 8) #(1 2 -3 4) #(1 2 0 4) #(2 4 0 8)) 2)
+	(values '( #(1/3 2/3 1 4/3) ) '( #(1/3 2/3 -1 4/3)) '( #(1 2 0 4))))
+
+#+END_SRC
+
+#+RESULTS:
+: T
 
 
 **** DONE Zeroing out the variable being eliminated
@@ -180,18 +287,21 @@ For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~
 and $n_i \in$ ~Neg~, take the sum (row addition in the matrix). Append
 the resulting inequality to the matrix.
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+I am thinking that we could do the redundency elimination separately
+on the sets pos neg and naught.  Because there is no way an inequality
+in one set is a multiple of one in another set.
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun eliminate (C xi)
       (multiple-value-bind (pos neg naught) (partition C xi)
         (dolist (p pos naught)
           (dolist (n neg)
-            (push (map 'vector #'+ p n) naught)))))))
+            (push (map 'vector #'+ p n) naught)))))
 #+END_SRC
 
 #+RESULTS:
 : ELIMINATE
 
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp :results output :package facet-discovery-tool
   (let ((C '(#(0 1 5 2) #(0 1 0 5) #(0 1 -4 -1))))
     (multiple-value-bind (P N Z) (partition C 2)
       (format t "~&+:~a~&-:~a~&z:~a" P N Z)
@@ -203,14 +313,15 @@ the resulting inequality to the matrix.
 : -:(#(0 1/4 -1 -1/4))
 : z:(#(0 1 0 5))
 
-#+BEGIN_SRC lisp :results output
-  (let ((C '(#(0 1 5 2) #(6 1 1 5) #(0 1 0 5) #(0 1 -4 -1))))
+#+BEGIN_SRC lisp :results output :package facet-discovery-tool
+  (let ((C '(#(0 1 -5 2) #(6 1 1 5) #(0 1 0 5) #(0 1 -4 -1) #(1 1 2 3))))
       (format t "~&~a" (eliminate C 2))
       )
 #+END_SRC
 
 #+RESULTS:
-: (#(6 5/4 0 19/4) #(0 9/20 0 3/20) #(0 1 0 5))
+: (#(1/2 3/4 0 5/4) #(1/2 7/10 0 19/10) #(6 5/4 0 19/4) #(6 6/5 0 27/5)
+:  #(0 1 0 5))
 
 **** DONE Removal
 
@@ -224,7 +335,7 @@ original with the mentioned zero coefficient, and the result of
 At the end of each comparison and removal, the matrix present
 represents a set of equalities and inequalities with $x_i$ eliminated.
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :package facet-discovery-tool
 (defun removal (C xi) ; DEPRECATED; post-compare garbage collection ought to handle this
     (if C
         (if (zerop (aref (car C) xi))
@@ -242,8 +353,18 @@ monday)
 
 
 
-*** Experiment
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+*** Redundancy Handling
+
+The trivial inequalties of the form $\alpha \geq 0$ will always be
+collected in the set ~naught~, and so can simply be trimmed at the end
+of the eliminations.
+
+The nontrivial inequalities can be handled separately in ~pos~ ~neg~
+and ~naught~, as no inequality can have multiples in another set. So
+we just need to call ~redundancy-trim~ every time we construct the
+triple of sets.
+
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun vars-to-elim (C nv) ; returns a sequence of the positions of variables 
                            ; to be eliminated, currently right to left
         (reverse (number-sequence (+ nv 1) (- (length (car C)) 1))))
@@ -253,7 +374,7 @@ monday)
 #+RESULTS:
 : VARS-TO-ELIM
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun eliminate-all (C nv &optional (i (1- (length (car C)))))
     (if (= i nv)
         C
@@ -263,24 +384,24 @@ monday)
 #+RESULTS:
 : ELIMINATE-ALL
 
-#+BEGIN_SRC lisp
-  (let ((C '( #(0 1 5 4) #(0 1 -4 -3))))
-    (eliminate-all C 2))
+#+BEGIN_SRC lisp :package facet-discovery-tool
+  (let ((C '( #(0 1 5 4 2) #(0 1 -4 -3 -3))))
+    (eliminate C 4))
 #+END_SRC
 
 #+RESULTS:
-| 0 | 7/12 | -1/12 | 0 |
+| 0 | 5/6 | 7/6 | 1 | 0 |
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun redundancy-trim (C)
-    (remove-duplicates C :test #'equalp))
+    (remove-duplicates C :test #'row-multiple-p))
 
 #+END_SRC
 
 #+RESULTS:
 : REDUNDANCY-TRIM
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun gcd-row (row) ; thank Euclid for the GCD being associative
     (let ((rowlist (loop for x across row collect x)))
          (reduce (lambda (x y) (gcd x y)) rowlist)))
@@ -290,7 +411,15 @@ monday)
 #+RESULTS:
 : GCD-ROW
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (gcd-row #(2 4 10 6)) 2)
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun divide-by-gcd (row)
          (progn (divide-row row (gcd-row row)) ; row your boat
                 row))
@@ -305,19 +434,133 @@ monday)
 #+RESULTS:
 : COEFF-REDUCTION
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (coeff-reduction '( #(1 2 3 4) #(2 4 6 8) #(3 6 9 12)))
+'(#(1 2 3 4) #(1 2 3 4) #(1 2 3 4)))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
 (equalp #(1 3 2 10) (let ((row (divide-by-gcd #(3 9 6 30)))) row))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+(defun trivial-row-p (row)
+  (reduce (lambda (x y) (and x y)) (map 'vector #'zerop row) :start 1))
+
+#+END_SRC
+
+#+RESULTS:
+: TRIVIAL-ROW-P
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(and (trivial-row-p #(-1 0 0 0 0))
+ (trivial-row-p #(-2 0 0 0 0)))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+(defun redun-trivial (C)
+  (cond ((null C) nil)
+        ((trivial-row-p (car C)) (redun-trivial (cdr C)))
+        (T (cons (car C) (redun-trivial (cdr C))))))
+
+#+END_SRC
+
+#+RESULTS:
+: REDUN-TRIVIAL
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (redun-trivial '(#(0 1 2 3 4) #(-1 0 0 0 0) #(0 0 0 0 0) #(1 1 1 1 1)))
+    '(#(0 1 2 3 4) #(1 1 1 1 1)))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+For now, we are doing this just to check.  The logic should be that we
+do this after every variable elimination and we do not go past the
+last column eliminated.
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+  (defun row-multiple-p (row1 row2)
+    "True iff one is a multiple of the other."
+    (let ((ratio))
+      (do*  ((i 0 (1+ i))
+             (a (aref row1 i) (aref row1 i))
+             (b (aref row2 i) (aref row2 i)))
+            ((= (1- (length row1)) i) t)
+        (cond ((and (zerop a) (not (zerop b))) (return nil))
+              ((and (zerop b) (not (zerop a))) (return nil))
+              ((and (zerop a) (zerop b)))
+              ((null ratio) (setq ratio (/ a b)))
+              ((not (= ratio (/ a b))) (return nil))))))
+#+END_SRC
+
+#+RESULTS:
+: ROW-MULTIPLE-P
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(row-multiple-p #(1 0 4 0) #(2 0 8 0) 3)
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(row-multiple-p #(1 0 3 4) #(2 4 6 8))
 
 #+END_SRC
 
 #+RESULTS:
 : NIL
 
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+(defun has-multiple-p (C)
+  (if (and C (cdr C))
+      (let ((row1 (car C)))
+        (reduce (lambda (x y) (or x y)) 
+          (mapcar (lambda (r) (row-multiple-p r row1)) (cdr C))))
+      nil))
+
+#+END_SRC
+
+#+RESULTS:
+: HAS-MULTIPLE-P
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(has-multiple-p '(#(1 2 3 4) #(1 1 1 1) #(2 4 6 8)))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+(defun redun-multiple (C)
+  (if (has-multiple-p C)
+      (redun-multiple (cdr C))
+      (cons (car C) (redun-multiple (cdr C)))))
+                                      
+
+#+END_SRC
+
+#+RESULTS:
+: REDUN-MULTIPLE
 
 
 ** Project
 
-#+BEGIN_SRC lisp :tangle "projector.lisp"
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun project (C ne nv)
     (let ((Cprime (eliminate-equations C ne nv)))
          (redundancy-trim (coeff-reduction (eliminate-all Cprime nv)))))
@@ -326,10 +569,10 @@ monday)
 #+RESULTS:
 : PROJECT
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp  :package facet-discovery-tool
 (defun project-test (C ne nv)
     (let ((Cprime (eliminate-equations C ne nv)))
-         (eliminate-all Cprime nv)))
+         (output-matrix (redun-trivial (eliminate-all Cprime nv)) 0 nv)))
 
 #+END_SRC
 
@@ -337,7 +580,7 @@ monday)
 : PROJECT-TEST
 
 
-#+BEGIN_SRC lisp :session 
+#+BEGIN_SRC lisp :session :results output :package facet-discovery-tool
   (let ((param '(1 2 2 2))
         (generator #'gen-at-least))
     (multiple-value-bind (C ne nv) (apply generator param)
@@ -345,23 +588,70 @@ monday)
 #+END_SRC
 
 #+RESULTS:
-|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+#+begin_example
+   0 <=         1/2x( 2)                                                      
+   1 <=1/2x( 1)1/2x( 2)                                                      
+   1 <=  +1x( 1)1/2x( 2)                                                      
+   0 <=1/2x( 1)                                                               
+   0 <=  +1x( 1)                                                               
+-3/2 <=-1/2x( 1)                                                               
+-1/2 <=1/2x( 1)                                                               
+  -2 <=  -1x( 1)                                                               
+  -1 <=-1/2x( 1)                                                               
+-3/2 <=         -1/2x( 2)                                                      
+#+end_example
+
+
+
+
+
+#+COMMENT:
+#+begin_example
+  -1 <=                                                                        
+   0 <=1/2x( 1)                                                               
+   0 <=  +1x( 1)                                                               
+-3/2 <=-1/2x( 1)                                                               
+-1/2 <=                                                                        
+-1/2 <=1/2x( 1)                                                               
+  -2 <=  -1x( 1)                                                               
+  -1 <=-1/2x( 1)                                                               
+  -1 <=                                                                        
+   0 <=           +1x( 2)                                                      
+   1 <=1/2x( 1)  +1x( 2)                                                      
+   1 <=  +1x( 1)  +1x( 2)                                                      
+   0 <=         1/2x( 2)                                                      
+   1 <=1/2x( 1)1/2x( 2)                                                      
+   1 <=  +1x( 1)1/2x( 2)                                                      
+  -1 <=                                                                        
+   0 <=1/2x( 1)                                                               
+   0 <=  +1x( 1)                                                               
+  -1 <=                                                                        
+   0 <=         1/2x( 2)                                                      
+   0 <=           +1x( 2)                                                      
+-3/2 <=         -1/2x( 2)                                                      
+-1/2 <=                                                                        
+-1/2 <=         1/2x( 2)                                                      
+  -2 <=           -1x( 2)                                                      
+  -1 <=         -1/2x( 2)                                                      
+  -1 <=                                                                        
+#+end_example
+
+
 |    0 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
 |    0 |    1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | -3/2 | -1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| -1/2 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | -1/2 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
 |   -2 |   -1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
 |   -1 | -1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|    0 |    1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+
 |    0 |    0 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
 |    1 |  1/2 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
 |    1 |    1 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|    0 |  1/2 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|    0 |    1 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
-|   -1 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+
 |    0 |    0 |  1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
 | -3/2 |    0 | -1/2 | 0 | 0 | 0 | 0 | 0 | 0 |
 | -1/2 |    0 |    0 | 0 | 0 | 0 | 0 | 0 | 0 |
