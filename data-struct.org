@@ -78,14 +78,25 @@ debugging purposes. In any case, it will be very slow.
 #+RESULTS:
 : MATRIX-REF
 
+On the other hand, referencing an element of a row is fast and we
+should abstract that away.
+#+BEGIN_SRC lisp :tangle "data-structure.lisp" :package facet-discovery-tool
+  (defmacro inequality-ref (ine i)
+    `(svref (car ,ine) ,i))
+  (defmacro row-ref (row i)
+    `(svref ,row ,i))
+#+END_SRC
+
+#+RESULTS:
+: ROW-REF
+
 #+BEGIN_SRC lisp :results output :package facet-discovery-tool
-    (let ((M (make-matrix 3 3))
-          (value 0))
-      (dolist (ine M)
-        (let ((row (inequality-data ine)))
-          (dotimes (j (length row))
-            (setf (aref row j) (incf value)))))
-        (format t "~&~a @(1 1):~a" M (matrix-ref M 1 1)))
+  (let ((M (make-matrix 3 3))
+        (value 0))
+    (dolist (ine M)
+      (dotimes (j (length (inequality-data ine)))
+        (setf (inequality-ref ine j) (incf value))))
+    (format t "~&~a @(1 1):~a" M (matrix-ref M 1 1)))
 #+END_SRC
 
 #+RESULTS:
@@ -219,4 +230,25 @@ another, the inequality corresponding to the larger set is redundant.
 
 #+RESULTS:
 : T
+
+*** Conversion
+A utility to convert from our first version of the data structure,
+with only the data part to the new structure where we add the history.
+
+#+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
+  (defun convert (C ne nv)
+    (let ((newC nil)
+          (m (length C)))
+      (do ((row (car C) (car C))
+           (C (cdr C) (cdr C))
+           (i 0 (1+ i)))
+          ((= i m) (nreverse newC))
+        (if (< i ne)
+            (push (cons row nil) newC)
+            (push (cons row (make-finite-set (- m ne) (- i ne))) newC)))))
+      
+#+END_SRC
+
+#+RESULTS:
+: CONVERT
 

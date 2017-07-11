@@ -43,7 +43,7 @@ colour.  The last set are the zero-one bounds for each additional
 variable.
 
 We will start with a simple-minded version that will printout the
-formulation.
+formulation. NOT FOR PRODUCTION.
 
 #+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
   (defun output-at-least (m n k l)
@@ -126,6 +126,7 @@ y(3,4) <= 1
    :PROPERTIES:
    :ID:       34b58ed7-6b17-4ffe-b260-8fc030cb8bef
    :END:
+The generator will accept a parameter list and a low-level generator function and call the low-level generator for each valid set of parameters.
 *** Utilities
     :PROPERTIES:
     :ID:       cc7ac485-70bf-4a21-ad05-8832357c2db1
@@ -146,8 +147,6 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
 
 #+RESULTS:
 : RANGE-TO-LIST
-
-
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
 (list (range-to-list '(3)) (range-to-list '(3 4 5)) (range-to-list '(3 7)))
@@ -190,7 +189,10 @@ with domain $[5,7]$ into the list ~((1 5) (1 6) (1 7) (2 5) (2 6) (2
     :PROPERTIES:
     :ID:       bdd1cbd1-8231-49d6-ba12-8f5d6029c4dc
     :END:
-The ~at-least~ constraint accepts four parameters ~at-least(m,n,k,l)~ and means
+This is our first low-level generator. 
+
+The ~at-least~ constraint accepts four parameters ~at-least(m,n,k,l)~
+and means
 : at_least_m(x_1, x_2, x_n) = k  x_i in [0,..,l]
 Its generator must return the matrix of linear constraints ~C,me,n~, where the first ~me~ rows are
 : b = a_1 x_1 + ... + a_{kl} y_{kl} 
@@ -207,31 +209,31 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
           (columns (+ 1 n (* n (1+ l))))
           (C nil))
       (dolist (ii I)
-        (let ((row (new-row columns)))
+        (let ((row (make-row columns)))
           (setf (aref row ii) -1)
           (dolist (jj J)
             (setf (aref row (var-index ii jj)) jj))
           (push row C))
-        (let ((row (new-row columns)))
+        (let ((row (make-row columns)))
           (setf (aref row 0) 1)
           (dolist (jj J)
             (setf (aref row (var-index ii jj)) 1))
           (push row C)))
-      (let ((row (new-row columns)))
+      (let ((row (make-row columns)))
         (setf (aref row 0) m)
         (dolist (ii I)
           (setf (aref row (var-index ii k)) 1))
         (push row C))
       (dolist (ii I)
         (dolist (jj J)
-          (let ((row0 (new-row columns))
-                (row1 (new-row columns)))
+          (let ((row0 (make-row columns))
+                (row1 (make-row columns)))
             (setf (aref row0 (var-index ii jj)) 1)
             (push row0 C)
             (setf (aref row1 (var-index ii jj)) -1)
             (setf (aref row1 0) -1)
             (push row1 C))))
-      (values (nreverse C) (+ n n) n))))
+      (values (convert (nreverse C) (+ n n) n) (+ n n) n))))
 #+END_SRC
 
 #+RESULTS:
@@ -242,6 +244,28 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
 #+END_SRC
 
 #+RESULTS:
+#+begin_example
+((#(0 -1 0 0 1 2 0 0 0)) (#(1 0 0 1 1 1 0 0 0)) (#(0 0 -1 0 0 0 0 1 2))
+ (#(1 0 0 0 0 0 1 1 1)) (#(1 0 0 0 0 1 0 0 1) . #*1000000000000)
+ (#(0 0 0 1 0 0 0 0 0) . #*0100000000000)
+ (#(-1 0 0 -1 0 0 0 0 0) . #*0010000000000)
+ (#(0 0 0 0 1 0 0 0 0) . #*0001000000000)
+ (#(-1 0 0 0 -1 0 0 0 0) . #*0000100000000)
+ (#(0 0 0 0 0 1 0 0 0) . #*0000010000000)
+ (#(-1 0 0 0 0 -1 0 0 0) . #*0000001000000)
+ (#(0 0 0 0 0 0 1 0 0) . #*0000000100000)
+ (#(-1 0 0 0 0 0 -1 0 0) . #*0000000010000)
+ (#(0 0 0 0 0 0 0 1 0) . #*0000000001000)
+ (#(-1 0 0 0 0 0 0 -1 0) . #*0000000000100)
+ (#(0 0 0 0 0 0 0 0 1) . #*0000000000010)
+ (#(-1 0 0 0 0 0 0 0 -1) . #*0000000000001))
+4
+2
+#+end_example
+
+
+
+#+Comments OLD VERSION
 |  0 | -1 |  0 |  0 |  1 |  2 |  0 |  0 |  0 |
 |  1 |  0 |  0 |  1 |  1 |  1 |  0 |  0 |  0 |
 |  0 |  0 | -1 |  0 |  0 |  0 |  0 |  1 |  2 |
@@ -269,7 +293,7 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
   (defun output-matrix (C ne nv)
     (let ((wc 4) (wi 2))
       (loop :for i from 0 :below (length C) :do
-         (let ((row (nth i C)))
+         (let ((row (car (nth i C))))
            (format t "~&~vd ~:[<=~; =~]" wc (aref row 0) (< i ne))
            (loop :for i :from 1 :below (length row) :do
               (if (zerop (aref row i))
@@ -307,18 +331,6 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
   -1 <=                                                                 -1y( 8)
 #+end_example
 
-
-*** Constraint data structure
-    :PROPERTIES:
-    :ID:       0eb97c76-8423-4bc9-8566-dba1cd739ad7
-    :END:
-#+BEGIN_SRC lisp :tangle "generator.lisp" :package facet-discovery-tool
-  (defun new-row (l)
-    (make-array l :initial-element 0 :element-type 'rational))
-#+END_SRC
-
-#+RESULTS:
-: NEW-ROW
 
 ** Mainline
    :PROPERTIES:
