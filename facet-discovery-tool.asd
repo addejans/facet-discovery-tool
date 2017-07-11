@@ -7,5 +7,6 @@
   :serial t
   :components ((:file "package")
                (:file "facet-discovery-tool")
-	       (:file "generator")))
+	       (:file "generator")
+               (:file "projector")))
 
