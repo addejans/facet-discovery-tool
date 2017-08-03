@@ -47,26 +47,28 @@ eventually.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun first-non-zero (row nv)
     "First non-zero position past nv."
-    (do ((i (1+ nv) (1+ i)))
-        ((not (zerop (aref row i))) i)))
+      (do ((i (1+ nv) (1+ i)))
+        ((not (zerop (inequality-ref row i))) i)))
 #+END_SRC
 
 #+RESULTS:
 : FIRST-NON-ZERO
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp 7 (first-non-zero #(1 0 0 0 0 0 0 2 0 2 4) 6))
+(equalp 7 (first-non-zero (cons #(1 0 0 0 0 0 0 2 0 2 4) nil) 6))
 #+END_SRC
 
 #+RESULTS:
-: NIL
+: T
+
+
 A row operation that zeros out the destination at pos from the source at pos.  
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun zero-out (dest source pos)
     "In-place, update the destination if coefficient at pos is non-zero."
-    (when (not (zerop (aref dest pos)))
-      (let* ((a (aref source pos))
-             (b (aref dest pos))
+    (when (not (zerop (inequality-ref dest pos)))
+      (let* ((a (inequality-ref source pos))
+             (b (inequality-ref dest pos))
              (c (/ (- b) a)))
         (kaplusb c source dest))))
 #+END_SRC
@@ -75,7 +77,8 @@ A row operation that zeros out the destination at pos from the source at pos.
 : ZERO-OUT
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp #(11 1 4 0) (zero-out #(6 0 2 1) #(5 1 2 -1) 3)) 
+(equalp (cons #(11 1 4 0) nil) (zero-out (cons #(6 0 2 1) nil) 
+                                         (cons #(5 1 2 -1) nil) 3)) 
 #+END_SRC
 
 #+RESULTS:
@@ -84,19 +87,20 @@ A row operation that zeros out the destination at pos from the source at pos.
 A blas-type operator: k times 'row a' add to 'row b'.  
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun kaplusb (k a b)
-    (dotimes (i (length a) b)
-      (incf (aref b i) (* k (aref a i)))))
+    (dotimes (i (inequality-length a) b)
+      (incf (inequality-ref b i) (* k (inequality-ref a i)))))
 #+END_SRC
 
 #+RESULTS:
 : KAPLUSB
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp #(2 4 7) (let ((dest #(0 0 1))) (kaplusb 2 #(1 2 3) dest) dest)) 
+(equalp (cons #(2 4 7) nil) (let ((dest (cons #(0 0 1) nil))) 
+                                 (kaplusb 2 (cons #(1 2 3) nil) dest) dest)) 
 #+END_SRC
 
 #+RESULTS:
-: NIL
+: T
 
 Consider the first ~ne~ rows.  For each one, find the first non-zero
 coefficient in the 'additional' variables (not among the variables
@@ -123,8 +127,9 @@ inequalities.
 : ELIMINATE-EQUATIONS
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp '(#(0 4 2 0 5)) (let ((C '(#(0 1 0 -1 0) #(0 1 2 3 5))))
-    (eliminate-equations C 1 2)))
+(equalp (list (cons #(0 4 2 0 5) nil)) (let ((C (list (cons #(0 1 0 -1 0) nil)
+                                               (cons #(0 1 2 3 5) nil))))
+                                        (eliminate-equations C 1 2)))
 #+END_SRC
 
 #+RESULTS:
@@ -208,11 +213,12 @@ may need to be considered.)
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun divide-row (row divisor)
-    (loop for i from 0 below (length row)
-             do (setf (aref row i) (/ (aref row i) divisor)))) ; ditch this double aref!
+    (loop for i from 0 below (inequality-length row)
+             do (setf (inequality-ref row i) 
+                      (/ (inequality-ref row i) divisor))))
 
 (defun normalize-row (row pos)
-    (let ((a (abs (aref row pos))))
+    (let ((a (abs (inequality-ref row pos))))
      (when (not (zerop a))
          (divide-row row a)))
 row) 
@@ -227,8 +233,9 @@ row)
 : NORMALIZE
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp (let ((C '( #(0 1 5 2) #(0 1 -4 3)))) (normalize  C 2)) '(#(0 1/5 1 2/5)
-#(0 1/4 -1 3/4)))
+(equalp (let ((C (list (cons #(0 1 5 2) nil) (cons #(0 1 -4 3) nil))))
+             (normalize  C 2))
+(list (cons #(0 1/5 1 2/5) nil) (cons #(0 1/4 -1 3/4) nil)))
 #+END_SRC
 
 #+RESULTS:
@@ -254,8 +261,8 @@ better readability.
       (dolist (row C (values (redundancy-trim pos)
                              (redundancy-trim neg) 
                              (redundancy-trim naught)))
-        (cond ((minusp (aref row xi)) (push row neg))
-              ((plusp (aref row xi)) (push row pos))
+        (cond ((minusp (inequality-ref row xi)) (push row neg))
+              ((plusp (inequality-ref row xi)) (push row pos))
               (t (push row naught))))))
 #+END_SRC
 
@@ -263,8 +270,9 @@ better readability.
 : PARTITION
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp (partition '( #(1 2 3 4) #(1 2 -3 4) #(1 2 0 4)) 2)
-(values '( #(1/3 2/3 1 4/3) ) '( #(1/3 2/3 -1 4/3)) '( #(1 2 0 4))))
+(equalp (partition (list (cons #(1 2 3 4) nil) (cons #(1 2 -3 4) nil) (cons #(1 2 0 4) nil)) 2)
+(values (list (cons #(1/3 2/3 1 4/3) nil)) (list (cons #(1/3 2/3 -1 4/3)  nil) )
+                                    (list (cons #(1 2 0 4)  nil))))
 
 #+END_SRC
 
@@ -272,8 +280,12 @@ better readability.
 : T
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp (partition '( #(1 2 3 4) #(2 4 6 8) #(1 2 -3 4) #(1 2 0 4) #(2 4 0 8)) 2)
-	(values '( #(1/3 2/3 1 4/3) ) '( #(1/3 2/3 -1 4/3)) '( #(1 2 0 4))))
+(equalp (partition (list '(#(1 2 3 4) . nil) '(#(2 4 6 8) . nil) '(#(1 2 -3 4) . nil)
+                         '(#(1 2 0 4) . nil) '(#(2 4 0 8) . nil) ) 
+                   2)
+	           (values (list (cons #(1/3 2/3 1 4/3) nil ))
+                   (list (cons #(1/3 2/3 -1 4/3) nil))
+                   (list (cons #(1 2 0 4) nil))))
 
 #+END_SRC
 
@@ -295,33 +307,36 @@ in one set is a multiple of one in another set.
       (multiple-value-bind (pos neg naught) (partition C xi)
         (dolist (p pos naught)
           (dolist (n neg)
-            (push (map 'vector #'+ p n) naught)))))
+            (push (add-inequalities p n) naught)))))
 #+END_SRC
 
 #+RESULTS:
 : ELIMINATE
 
 #+BEGIN_SRC lisp :results output :package facet-discovery-tool
-  (let ((C '(#(0 1 5 2) #(0 1 0 5) #(0 1 -4 -1))))
+  (let (( C (list '(#(0 1 5 2) . nil) '(#(0 1 0 5) . nil) '(#(0 1 -4 -1) . nil) ) ))
     (multiple-value-bind (P N Z) (partition C 2)
       (format t "~&+:~a~&-:~a~&z:~a" P N Z)
       ))
 #+END_SRC
 
 #+RESULTS:
-: +:(#(0 1/5 1 2/5))
-: -:(#(0 1/4 -1 -1/4))
-: z:(#(0 1 0 5))
+: +:((#(0 1/5 1 2/5)))
+: -:((#(0 1/4 -1 -1/4)))
+: z:((#(0 1 0 5)))
 
 #+BEGIN_SRC lisp :results output :package facet-discovery-tool
-  (let ((C '(#(0 1 -5 2) #(6 1 1 5) #(0 1 0 5) #(0 1 -4 -1) #(1 1 2 3))))
+  (let ((C (list '(#(0 1 -5 2) . #*10000) '(#(6 1 1 5) . #*01000) 
+                 '(#(0 1 0 5) . #*00100) '(#(0 1 -4 -1) . #*00010) 
+                 '(#(1 1 2 3) . #*00001))))
       (format t "~&~a" (eliminate C 2))
       )
 #+END_SRC
 
 #+RESULTS:
-: (#(1/2 3/4 0 5/4) #(1/2 7/10 0 19/10) #(6 5/4 0 19/4) #(6 6/5 0 27/5)
-:  #(0 1 0 5))
+: ((#(6 6/5 0 27/5) . #*11000) (#(6 5/4 0 19/4) . #*01010)
+:  (#(1/2 7/10 0 19/10) . #*10001) (#(1/2 3/4 0 5/4) . #*00011)
+:  (#(0 1 0 5) . #*00100))
 
 **** DONE Removal
 
@@ -375,7 +390,7 @@ triple of sets.
 : VARS-TO-ELIM
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
-  (defun eliminate-all (C nv &optional (i (1- (length (car C)))))
+  (defun eliminate-all (C nv &optional (i (1- (inequality-length (car C)))))
     (if (= i nv)
         C
         (eliminate-all (eliminate C i) nv (1- i))))
@@ -385,12 +400,13 @@ triple of sets.
 : ELIMINATE-ALL
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-  (let ((C '( #(0 1 5 4 2) #(0 1 -4 -3 -3))))
+ (equalp (let ((C (list '(#(0 1 5 4 2) . #*10) '(#(0 1 -4 -3 -3) . #*01) ) ))
     (eliminate C 4))
+    '(( #(0 5/6 7/6 1 0) . #*11)))
 #+END_SRC
 
 #+RESULTS:
-| 0 | 5/6 | 7/6 | 1 | 0 |
+: T
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun redundancy-trim (C)
@@ -403,7 +419,7 @@ triple of sets.
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun gcd-row (row) ; thank Euclid for the GCD being associative
-    (let ((rowlist (loop for x across row collect x)))
+    (let ((rowlist (loop for x across (inequality-data row) collect x)))
          (reduce (lambda (x y) (gcd x y)) rowlist)))
 
 #+END_SRC
@@ -412,7 +428,7 @@ triple of sets.
 : GCD-ROW
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp (gcd-row #(2 4 10 6)) 2)
+(equalp (gcd-row '(#(2 4 10 6) . #*01)) 2)
 
 #+END_SRC
 
@@ -435,8 +451,8 @@ triple of sets.
 : COEFF-REDUCTION
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp (coeff-reduction '( #(1 2 3 4) #(2 4 6 8) #(3 6 9 12)))
-'(#(1 2 3 4) #(1 2 3 4) #(1 2 3 4)))
+(equalp (coeff-reduction '( (#(1 2 3 4) . #*100) (#(2 4 6 8) . #*010) (#(3 6 9 12) . #*001)))
+'((#(1 2 3 4) . #*100) (#(1 2 3 4) . #*010) (#(1 2 3 4) . #*001)))
 
 #+END_SRC
 
@@ -444,7 +460,7 @@ triple of sets.
 : T
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp #(1 3 2 10) (let ((row (divide-by-gcd #(3 9 6 30)))) row))
+(equalp '(#(1 3 2 10) . #*01) (let ((row (divide-by-gcd '(#(3 9 6 30) . #*01)))) row))
 
 #+END_SRC
 
@@ -453,7 +469,7 @@ triple of sets.
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun trivial-row-p (row)
-  (reduce (lambda (x y) (and x y)) (map 'vector #'zerop row) :start 1))
+  (reduce (lambda (x y) (and x y)) (map 'vector #'zerop (inequality-data row)) :start 1))
 
 #+END_SRC
 
@@ -461,8 +477,8 @@ triple of sets.
 : TRIVIAL-ROW-P
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(and (trivial-row-p #(-1 0 0 0 0))
- (trivial-row-p #(-2 0 0 0 0)))
+(and (trivial-row-p '(#(-1 0 0 0 0) . #*01))
+ (trivial-row-p '(#(-2 0 0 0 0) . #*10)))
 
 #+END_SRC
 
@@ -481,13 +497,16 @@ triple of sets.
 : REDUN-TRIVIAL
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(equalp (redun-trivial '(#(0 1 2 3 4) #(-1 0 0 0 0) #(0 0 0 0 0) #(1 1 1 1 1)))
-    '(#(0 1 2 3 4) #(1 1 1 1 1)))
+(equalp (redun-trivial '((#(0 1 2 3 4) . #*1000) (#(-1 0 0 0 0) . #*0100) 
+                         (#(0 0 0 0 0) . #*0010) (#(1 1 1 1 1) . #*0001)))
+    '((#(0 1 2 3 4) . #*1000) (#(1 1 1 1 1) . #*0001)))
 
 #+END_SRC
 
 #+RESULTS:
 : T
+
+
 For now, we are doing this just to check.  The logic should be that we
 do this after every variable elimination and we do not go past the
 last column eliminated.
@@ -496,9 +515,9 @@ last column eliminated.
     "True iff one is a multiple of the other."
     (let ((ratio))
       (do*  ((i 0 (1+ i))
-             (a (aref row1 i) (aref row1 i))
-             (b (aref row2 i) (aref row2 i)))
-            ((= (1- (length row1)) i) t)
+             (a (inequality-ref row1 i) (inequality-ref row1 i))
+             (b (inequality-ref row2 i) (inequality-ref row2 i)))
+            ((= (1- (inequality-length row1)) i) t)
         (cond ((and (zerop a) (not (zerop b))) (return nil))
               ((and (zerop b) (not (zerop a))) (return nil))
               ((and (zerop a) (zerop b)))
@@ -510,14 +529,14 @@ last column eliminated.
 : ROW-MULTIPLE-P
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(row-multiple-p #(1 0 4 0) #(2 0 8 0) 3)
+(row-multiple-p '(#(1 0 4 0) . #*01) '(#(2 0 8 0) . #*10))
 #+END_SRC
 
 #+RESULTS:
 : T
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(row-multiple-p #(1 0 3 4) #(2 4 6 8))
+(row-multiple-p '(#(1 0 3 4) . #*10) '(#(2 4 6 8) . #*01))
 
 #+END_SRC
 
@@ -538,7 +557,7 @@ last column eliminated.
 : HAS-MULTIPLE-P
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(has-multiple-p '(#(1 2 3 4) #(1 1 1 1) #(2 4 6 8)))
+(has-multiple-p '((#(1 2 3 4) . #*100) (#(1 1 1 1) . #*010) (#(2 4 6 8) . #*001)))
 
 #+END_SRC
 
@@ -588,6 +607,19 @@ last column eliminated.
 #+END_SRC
 
 #+RESULTS:
+:    0 <=           +1x( 2)                                                      
+:    1 <=1/2x( 1)  +1x( 2)                                                      
+:    1 <=  +1x( 1)  +1x( 2)                                                      
+:    0 <=1/2x( 1)                                                               
+: -3/2 <=-1/2x( 1)                                                               
+: -1/2 <=1/2x( 1)                                                               
+:   -2 <=  -1x( 1)                                                               
+:   -2 <=           -1x( 2)                                                      
+
+
+
+
+
 #+begin_example
    0 <=         1/2x( 2)                                                      
    1 <=1/2x( 1)1/2x( 2)                                                      

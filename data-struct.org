@@ -10,6 +10,9 @@ An inequality is a cons of the rationals making up the inequality and the histor
   (cons (make-row n) (make-finite-set n element)))
 #+END_SRC
 
+#+RESULTS:
+: MAKE-INEQUALITY
+
 *** Accessors
 Access for the data part and the history part.
 #+BEGIN_SRC lisp :tangle "data-structure.lisp" :package facet-discovery-tool
@@ -66,6 +69,15 @@ Adding an inequality to a matrix of inequalities.
 #+RESULTS:
 : ((#(0 0 0 0) . #*0001) (#(0 0 0 0) . #*1000) (#(0 0 0 0) . #*0100)
 :  (#(0 0 0 0) . #*0010))
+
+Finding the length of the data part of the inequality.
+#+BEGIN_SRC lisp :package facet-discovery-tool :tangle "data-structure.lisp"
+(defun inequality-length (ine)
+  (length (car ine)))
+#+END_SRC
+
+#+RESULTS:
+: INEQUALITY-LENGTH
 
 Referencing an indexed element of the matrix. This is very likely not
 useful in production code, but might be useful for displaying or
