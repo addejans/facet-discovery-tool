@@ -294,11 +294,11 @@ The nv is the number of variables considered 'real', i.e. the $x_1,
     (let ((wc 4) (wi 2))
       (loop :for i from 0 :below (length C) :do
          (let ((row (car (nth i C))))
-           (format t "~&~vd ~:[<=~; =~]" wc (inequality-ref row 0) (< i ne))
-           (loop :for i :from 1 :below (length (inequality-data row)) :do
-              (if (zerop (inequality-ref row i))
+           (format t "~&~vd ~:[<=~; =~]" wc (aref row 0) (< i ne))
+           (loop :for i :from 1 :below (length row) :do
+              (if (zerop (aref row i))
                   (format t "~va   ~va" wc "" wi "")
-                  (format t "~v@d~:[y~;x~](~vd)"  wc (inequality-ref row i) 
+                  (format t "~v@d~:[y~;x~](~vd)"  wc (aref row i) 
                                                      (<= i nv) wi i)))))))
 #+END_SRC
 
