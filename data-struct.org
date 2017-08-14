@@ -1,4 +1,14 @@
 * Data structure used in the FM code
+** Preamble
+   :PROPERTIES:
+   :ID:       2456ed95-e292-4dcd-9c55-8104f2047047
+   :END:
+#+BEGIN_SRC lisp :tangle "data-structure.lisp"
+(in-package #:facet-discovery-tool)
+#+END_SRC
+#+BEGIN_SRC lisp :tangle "finite-set.lisp"
+(in-package #:facet-discovery-tool)
+#+END_SRC
 
 This is a merged and improved version of the matrix-handler and the
 finite set utilities.

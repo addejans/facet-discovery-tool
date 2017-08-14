@@ -495,7 +495,8 @@ last column eliminated.
       (do*  ((i 0 (1+ i))
              (a (inequality-ref row1 i) (inequality-ref row1 i))
              (b (inequality-ref row2 i) (inequality-ref row2 i)))
-            ((= (1- (inequality-length row1)) i) t)
+            ((= (1- (inequality-length row1)) i)
+             (or (and (zerop a) (zerop b)) (and (not (zerop b)) (= ratio (/ a b)))))
         (cond ((and (zerop a) (not (zerop b))) (return nil))
               ((and (zerop b) (not (zerop a))) (return nil))
               ((and (zerop a) (zerop b)))
@@ -547,26 +548,26 @@ C.
 Removes the redundant inequalities that are multiples of other
 inequalities.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
-(defun redun-multiple (C)
-  (if (has-multiple-p C)
-      (redun-multiple (cdr C))
-      (cons (car C) (redun-multiple (cdr C)))))
-                                      
-
+  (defun redun-multiple (C)
+    (if (has-multiple-p C)
+        (redun-multiple (cdr C))
+        (cons (car C) (redun-multiple (cdr C)))))
 #+END_SRC
 
 #+RESULTS:
 : REDUN-MULTIPLE
 
-#+BEGIN_SRC lisp :tangle "projector.lisp :package facet-discovery-tool
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun row-history-check (row rest)
   (if rest
       (if (finite-set-included-p (inequality-history row) (inequality-history (car rest)))
           (row-history-check row (cdr rest))
           (cons (car rest) (row-history-check row (cdr rest))))
       row))
-
 #+END_SRC
+
+#+RESULTS:
+: ROW-HISTORY-CHECK
 
 
 ** Project
@@ -600,14 +601,20 @@ inequalities.
 #+END_SRC
 
 #+RESULTS:
-:    0 <=           +1x( 2)                                                      
-:    1 <=1/2x( 1)  +1x( 2)                                                      
-:    1 <=  +1x( 1)  +1x( 2)                                                      
-:    0 <=1/2x( 1)                                                               
-: -3/2 <=-1/2x( 1)                                                               
-: -1/2 <=1/2x( 1)                                                               
-:   -2 <=  -1x( 1)                                                               
-:   -2 <=           -1x( 2)                                                      
+#+begin_example
+   0 <=           +1x( 2)                                                      
+   1 <=1/2x( 1)  +1x( 2)                                                      
+   1 <=  +1x( 1)  +1x( 2)                                                      
+   1 <=1/2x( 1)1/2x( 2)                                                      
+   1 <=  +1x( 1)1/2x( 2)                                                      
+   0 <=1/2x( 1)                                                               
+-3/2 <=-1/2x( 1)                                                               
+-1/2 <=1/2x( 1)                                                               
+  -2 <=  -1x( 1)                                                               
+-3/2 <=         -1/2x( 2)                                                      
+-1/2 <=         1/2x( 2)                                                      
+  -1 <=         -1/2x( 2)                                                      
+#+end_example
 
 
 

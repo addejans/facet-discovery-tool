@@ -6,7 +6,10 @@
   :license "LGPL"
   :serial t
   :components ((:file "package")
+               (:file "finite-set")
+               (:file "data-structure")
                (:file "facet-discovery-tool")
 	       (:file "generator")
-               (:file "projector")))
+               (:file "projector")
+               ))
 
