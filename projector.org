@@ -15,10 +15,10 @@
    :PROPERTIES:
    :ID:       b929f0e7-13d9-48df-bfe7-6d3a5233927a
    :END:
-The parameters are ~c~, the matrix of equalities and inequalities,
-~ne~ the number of equalities (which are all at the beginning) and
-~nv~ the number of variables onto which to project (and they are at
-positions 1 to ~nv~ since column 0 has the constant side.)
+The parameters are ~c~, the matrix of equalities and inequalities;
+~ne~, the number of equalities (which are all at the top of the list);
+and ~nv~, the number of variables onto which to project (and they are
+at positions 1 to ~nv~ since column 0 has the constant side.)
 
 First, use all ~ne~ equalities to eliminate ~ne~ variables (starting
 from the right).  Decide which variable to eliminate next. (In time we
@@ -28,7 +28,7 @@ Sort the matrix on the coefficient of that variable. For every pair of
 one negative and one positive coefficient, generate the new
 inequality. (This we will do in parallel, eventually.)
 
-Then get rid of redundancy. (Eventually.)
+Then get rid of redundancy.
 
 Rinse and repeat until only ~nv~ variables are left. (Every
 coefficient past ~nv~ is zero.)
@@ -42,8 +42,12 @@ coefficient. (Maybe take out the gcd from every row).
 
 Eliminate variables from the system using the ~ne~ equations.
 
-This function assumes the user is not an idiot.  We need to fix this
-eventually.
+This function assumes the user is not an idiot. If the system is not
+feasible this will fail. We will need to improve on this later.
+
+It will find, given a row and the number of variables we wish to
+project onto, the first non-zero position in the data part of the
+inequalities.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun first-non-zero (row nv)
     "First non-zero position past nv."
@@ -211,6 +215,11 @@ options: 1, -1, or zero.
 (This process can definitely be its own function but its efficiency
 may need to be considered.)
 
+Divide-row divides a row in the matrix by another
+number. Normalize-row divides a row by the coefficient at pos,
+assuming that coefficient is nonzero. Normalize applies the row
+normalization at a position to every row in the matrix, preparing for
+elimination.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun divide-row (row divisor)
     (loop for i from 0 below (inequality-length row)
@@ -245,13 +254,13 @@ row)
 
 **** DONE Partition
 
-Ignore henceforth inequalities containing a coefficient of zero on
-$x_i$.  Construct two sets, ~Pos~ and ~Neg~, such that every
-inequality belongs to one or the other depending on the sign of the
+Construct three sets, ~Naught~, ~Pos~, and ~Neg~; such that every
+inequality belongs to one of them depending on the sign of the
 coefficient on $x_i$. The parameter ~xi~ is the address of the
-coefficient on $x_i$ in ~C~ and probably needs to be renamed for
-better readability.
+coefficient on $x_i$ in ~C~.
 
+This function takes the matrix and, after normalizing on ~xi~,
+partitions the inequalities into the three sets.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun partition (C xi)
     (normalize C xi)
@@ -297,7 +306,7 @@ better readability.
 
 For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~
 and $n_i \in$ ~Neg~, take the sum (row addition in the matrix). Append
-the resulting inequality to the matrix.
+the resulting inequality to the new matrix.
 
 I am thinking that we could do the redundency elimination separately
 on the sets pos neg and naught.  Because there is no way an inequality
@@ -338,57 +347,7 @@ in one set is a multiple of one in another set.
 :  (#(1/2 7/10 0 19/10) . #*10001) (#(1/2 3/4 0 5/4) . #*00011)
 :  (#(0 1 0 5) . #*00100))
 
-**** DONE Removal
-
-Delete every row from the matrix who belonged to ~Pos~ or ~Neg~.  The
-only rows not used at this point (and thus, the rows that must remain)
-are those that had a coefficient of zero on $x_i$ to begin with. So,
-the new matrix will be the union of the following: rows from the
-original with the mentioned zero coefficient, and the result of
-~compare~.
-
-At the end of each comparison and removal, the matrix present
-represents a set of equalities and inequalities with $x_i$ eliminated.
-
-#+BEGIN_SRC lisp :package facet-discovery-tool
-(defun removal (C xi) ; DEPRECATED; post-compare garbage collection ought to handle this
-    (if C
-        (if (zerop (aref (car C) xi))
-            (cons (car C) (removal (cdr C) xi)) ; keep it, continue to the rest
-            (removal (cdr C) xi)) ; toss it, continue to the rest
-        nil))
-#+END_SRC
-
-#+RESULTS:
-: REMOVAL
-
-And finally, the whole elimination step for one variable: (thought:
-how can we best keep track of number of equations in C? discuss
-monday)
-
-
-
-*** Redundancy Handling
-
-The trivial inequalties of the form $\alpha \geq 0$ will always be
-collected in the set ~naught~, and so can simply be trimmed at the end
-of the eliminations.
-
-The nontrivial inequalities can be handled separately in ~pos~ ~neg~
-and ~naught~, as no inequality can have multiples in another set. So
-we just need to call ~redundancy-trim~ every time we construct the
-triple of sets.
-
-#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
-(defun vars-to-elim (C nv) ; returns a sequence of the positions of variables 
-                           ; to be eliminated, currently right to left
-        (reverse (number-sequence (+ nv 1) (- (length (car C)) 1))))
-
-#+END_SRC
-
-#+RESULTS:
-: VARS-TO-ELIM
-
+This will eliminate all variables past ~nv~.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
   (defun eliminate-all (C nv &optional (i (1- (inequality-length (car C)))))
     (if (= i nv)
@@ -408,6 +367,20 @@ triple of sets.
 #+RESULTS:
 : T
 
+*** Redundancy Handling
+
+The trivial inequalties of the form $\alpha \geq 0$ will always be
+collected in the set ~naught~, and so can simply be trimmed at the end
+of the eliminations.
+
+The nontrivial inequalities can be handled separately in ~pos~ ~neg~
+and ~naught~, as no inequality can have multiples in another set. So
+we just need to call ~redundancy-trim~ every time we construct the
+triple of sets.
+
+Inequalities that are loose bounds, however, must be checked for after
+the new matrix has been constructed.
+
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun redundancy-trim (C)
     (remove-duplicates C :test #'row-multiple-p))
@@ -417,6 +390,7 @@ triple of sets.
 #+RESULTS:
 : REDUNDANCY-TRIM
 
+Finds the gcd of the coefficients of an inequality.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun gcd-row (row) ; thank Euclid for the GCD being associative
     (let ((rowlist (loop for x across (inequality-data row) collect x)))
@@ -435,6 +409,8 @@ triple of sets.
 #+RESULTS:
 : T
 
+Takes the gcd of a row and divides the row by it. Coeff-reduction will
+be used on the final matrix to simplify the representation a bit.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun divide-by-gcd (row)
          (progn (divide-row row (gcd-row row)) ; row your boat
@@ -467,6 +443,7 @@ triple of sets.
 #+RESULTS:
 : T
 
+This determines whether a row is trivial (of the form $\alpha \geq 0$).
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun trivial-row-p (row)
   (reduce (lambda (x y) (and x y)) (map 'vector #'zerop (inequality-data row)) :start 1))
@@ -485,6 +462,7 @@ triple of sets.
 #+RESULTS:
 : T
 
+This removes all trivial inequalities from the matrix.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun redun-trivial (C)
   (cond ((null C) nil)
@@ -543,6 +521,8 @@ last column eliminated.
 #+RESULTS:
 : NIL
 
+Returns true if there is at least one row in C which has a multiple in
+C.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun has-multiple-p (C)
   (if (and C (cdr C))
@@ -564,6 +544,8 @@ last column eliminated.
 #+RESULTS:
 : T
 
+Removes the redundant inequalities that are multiples of other
+inequalities.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun redun-multiple (C)
   (if (has-multiple-p C)
@@ -576,8 +558,19 @@ last column eliminated.
 #+RESULTS:
 : REDUN-MULTIPLE
 
+#+BEGIN_SRC lisp :tangle "projector.lisp :package facet-discovery-tool
+(defun row-history-check (row rest)
+  (if rest
+      (if (finite-set-included-p (inequality-history row) (inequality-history (car rest)))
+          (row-history-check row (cdr rest))
+          (cons (car rest) (row-history-check row (cdr rest))))
+      row))
+
+#+END_SRC
+
 
 ** Project
+
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun project (C ne nv)
