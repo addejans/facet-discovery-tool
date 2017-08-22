@@ -352,7 +352,7 @@ This will eliminate all variables past ~nv~.
   (defun eliminate-all (C nv &optional (i (1- (inequality-length (car C)))))
     (if (= i nv)
         C
-        (eliminate-all (eliminate C i) nv (1- i))))
+        (eliminate-all (row-history-check2 (eliminate C i)) nv (1- i))))
 #+END_SRC
 
 #+RESULTS:
@@ -545,6 +545,8 @@ C.
 #+RESULTS:
 : T
 
+
+
 Removes the redundant inequalities that are multiples of other
 inequalities.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
@@ -558,16 +560,60 @@ inequalities.
 : REDUN-MULTIPLE
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
-(defun row-history-check (row rest)
-  (if rest
-      (if (finite-set-included-p (inequality-history row) (inequality-history (car rest)))
-          (row-history-check row (cdr rest))
-          (cons (car rest) (row-history-check row (cdr rest))))
-      row))
+(defun row-history-check (C)
+  (dolist (row1 C)
+    (dolist (row2 C)
+      (let ((row1-hist (inequality-history row1))
+	    (row2-hist (inequality-history row2)))
+	(cond ((finite-set-included-p row1-hist row2-hist) (remove row2 C))
+	      ((finite-set-included-p row2-hist row1-hist) (remove row1 C))
+	      (T))))))
 #+END_SRC
 
 #+RESULTS:
 : ROW-HISTORY-CHECK
+
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+(defun row-history-check2 (C)
+  (loop for row1 in C do
+       (loop for row2 in C do
+	    (let ((row1-hist (inequality-history row1))
+		  (row2-hist (inequality-history row2)))
+	      (cond ((finite-set-included-p row1-hist row2-hist) (delete row2 C))
+		    ((finite-set-included-p row2-hist row1-hist) (delete row1 C))
+		    (T))))
+       return C))
+#+END_SRC
+
+#+RESULTS:
+: ROW-HISTORY-CHECK2
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(let ((mat '(((1 2 3 4) . #*0001)
+	     ((5 6 7 8) . #*0011)
+	     ((2 4 6 8) . #*1001)
+	     ((1 1 1 1) . #*1000))))
+  (row-history-check2 mat))
+
+#+END_SRC
+
+#+RESULTS:
+: (((1 2 3 4) . #*0001) ((1 1 1 1) . #*1000))
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+(equalp (row-history-check2 '(((1 2 3 4) . #*0001)
+                              ((5 6 7 8) . #*0011)
+                              ((2 4 6 8) . #*1001)
+                              ((1 1 1 1) . #*1000)))
+	'(((1 2 3 4) . #*0001) 
+	  ((1 1 1 1) . #*1000)))
+
+#+END_SRC
+
+#+RESULTS:
+: T
+
+
 
 
 ** Project
@@ -584,9 +630,10 @@ inequalities.
 
 #+BEGIN_SRC lisp  :package facet-discovery-tool
 (defun project-test (C ne nv)
-    (let ((Cprime (eliminate-equations C ne nv)))
-         (output-matrix (redun-trivial (eliminate-all Cprime nv)) 0 nv)))
-
+  (let ((Cprime (eliminate-equations C ne nv)))
+    (output-matrix (redun-trivial
+		    (eliminate-all Cprime nv))
+		   0 nv)))
 #+END_SRC
 
 #+RESULTS:
@@ -615,6 +662,30 @@ inequalities.
 -1/2 <=         1/2x( 2)                                                      
   -1 <=         -1/2x( 2)                                                      
 #+end_example
+
+
+
+
+Here is the current output of the above test block, with the
+historical sets as well. Notice that none of the sets are contained
+within another... so the subroutine to check for subsets will always
+fail.
+#+begin_comment
+((#(   0    0    1 0 0 0 0 0 0) . #*1000001010000)
+ (#(   1  1/2    1 0 0 0 0 0 0) . #*1001000010000)
+ (#(   1    1    1 0 0 0 0 0 0) . #*1010000010000)
+ (#(   1  1/2  1/2 0 0 0 0 0 0) . #*1001000001000)
+ (#(   1    1  1/2 0 0 0 0 0 0) . #*1010000001000)
+ (#(   0  1/2    0 0 0 0 0 0 0) . #*1001000000001)
+ (#(-3/2 -1/2    0 0 0 0 0 0 0) . #*0000101000000)
+ (#(-1/2  1/2    0 0 0 0 0 0 0) . #*0010100000000)
+ (#(  -2   -1    0 0 0 0 0 0 0) . #*0100001000000)
+ (#(-3/2    0 -1/2 0 0 0 0 0 0) . #*0000000000101)
+ (#(-1/2    0  1/2 0 0 0 0 0 0) . #*0000000010100)
+ (#(  -1    0 -1/2 0 0 0 0 0 0) . #*0000000101000))
+#+end_comment
+
+
 
 
 
