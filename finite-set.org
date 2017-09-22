@@ -28,10 +28,10 @@ A small test
 #+RESULTS:
 : T
 
-** Size
+** Maximum size
 Maybe we need this
 #+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
-  (defun finite-set-size (a)
+  (defun finite-set-max-size (a)
     (length a))
 #+END_SRC
 
@@ -63,6 +63,16 @@ inequality from two old ones.
 
 #+RESULTS:
 : T
+
+** TODO Set size
+aka Population count
+#+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
+(defun finite-set-size (s)
+  (count 1 s))
+#+END_SRC
+
+#+RESULTS:
+: FINITE-SET-SIZE
 
 ** Set inclusion predicate
 To know if an inequality is redundant, we need to check if its set is

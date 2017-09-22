@@ -308,15 +308,43 @@ For every pair of inequalities $p_i$ and $n_i$, where $p_i \in$ ~Pos~
 and $n_i \in$ ~Neg~, take the sum (row addition in the matrix). Append
 the resulting inequality to the new matrix.
 
-I am thinking that we could do the redundency elimination separately
-on the sets pos neg and naught.  Because there is no way an inequality
-in one set is a multiple of one in another set.
+We will implement Cernikov's rules to reduce the number of
+inequalities. Informally, the first rule is that the size of the sets
+must be 'low'.  The second enforces that a set is not a superset of
+another one.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
-  (defun eliminate (C xi)
+  (defun cernikov-low-p (row-p row-n iter)
+    "True if the new inequality would have a set of set no larger then iter+1."
+    (let* ((his-p (inequality-history row-p))
+           (his-n (inequality-history row-n))
+           (his-r (finite-set-union his-p his-n)))
+;;      (format t "~&a:~a~&b:~a~&c:~a iter:~a" row-p row-n his-r iter)
+      (if (<= (finite-set-size his-r) (1+ iter))
+          his-r
+          nil)))
+#+END_SRC
+
+#+RESULTS:
+: CERNIKOV-LOW-P
+
+#+BEGIN_SRC lisp :package facet-discovery-tool
+  (and
+   (cernikov-low-p '(#(1 2 3) . #*100) '(#(4 5 6) . #*010) 1)
+   (not (cernikov-low-p '(#(1 2 3) . #*100) '(#(4 5 6) . #*010) 0)))
+#+END_SRC
+
+#+RESULTS:
+: T
+
+~Eliminate~ accepts three parameters: the current matrix, the index of
+the variable to eliminate and the current iteration number.
+#+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
+  (defun eliminate (C xi iter)
       (multiple-value-bind (pos neg naught) (partition C xi)
         (dolist (p pos naught)
           (dolist (n neg)
-            (push (add-inequalities p n) naught)))))
+            (when (cernikov-low-p p n iter)
+              (push (add-inequalities p n) naught))))))
 #+END_SRC
 
 #+RESULTS:
@@ -338,7 +366,7 @@ in one set is a multiple of one in another set.
   (let ((C (list '(#(0 1 -5 2) . #*10000) '(#(6 1 1 5) . #*01000) 
                  '(#(0 1 0 5) . #*00100) '(#(0 1 -4 -1) . #*00010) 
                  '(#(1 1 2 3) . #*00001))))
-      (format t "~&~a" (eliminate C 2))
+      (format t "~&~a" (eliminate C 2 1))
       )
 #+END_SRC
 
@@ -349,10 +377,10 @@ in one set is a multiple of one in another set.
 
 This will eliminate all variables past ~nv~.
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
-  (defun eliminate-all (C nv &optional (i (1- (inequality-length (car C)))))
+  (defun eliminate-all (C nv &optional (iter 1) (i (1- (inequality-length (car C)))))
     (if (= i nv)
         C
-        (eliminate-all (row-history-check2 (eliminate C i)) nv (1- i))))
+        (eliminate-all (eliminate C i iter) nv (1+ iter) (1- i))))
 #+END_SRC
 
 #+RESULTS:
@@ -360,7 +388,7 @@ This will eliminate all variables past ~nv~.
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
  (equalp (let ((C (list '(#(0 1 5 4 2) . #*10) '(#(0 1 -4 -3 -3) . #*01) ) ))
-    (eliminate C 4))
+    (eliminate C 4 1))
     '(( #(0 5/6 7/6 1 0) . #*11)))
 #+END_SRC
 
@@ -617,7 +645,7 @@ inequalities.
 
 
 ** Project
-
+The mainline.
 
 #+BEGIN_SRC lisp :tangle "projector.lisp" :package facet-discovery-tool
 (defun project (C ne nv)
@@ -629,11 +657,17 @@ inequalities.
 : PROJECT
 
 #+BEGIN_SRC lisp  :package facet-discovery-tool
-(defun project-test (C ne nv)
-  (let ((Cprime (eliminate-equations C ne nv)))
-    (output-matrix (redun-trivial
-		    (eliminate-all Cprime nv))
-		   0 nv)))
+  (defun project-test (C ne nv)
+(output-matrix C ne nv)
+(format t "~&~a" C)
+    (let* ((Cprime (eliminate-equations C ne nv))
+           (Cpp (redun-trivial (eliminate-all Cprime nv))))
+(output-matrix C ne nv)
+(format t "~&~a" C)
+(output-matrix Cprime 0 nv)
+(format t "~&~a" Cprime)
+(format t "~&~a" Cpp)
+      (output-matrix Cpp 0 nv)))
 #+END_SRC
 
 #+RESULTS:
@@ -649,6 +683,106 @@ inequalities.
 
 #+RESULTS:
 #+begin_example
+   0  =  -1x( 1)                    +1y( 4)  +2y( 5)                           
+   1  =                    +1y( 3)  +1y( 4)  +1y( 5)                           
+   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
+   1  =                                               +1y( 6)  +1y( 7)  +1y( 8)
+   1 <=                                      +1y( 5)                    +1y( 8)
+   0 <=                    +1y( 3)                                             
+  -1 <=                    -1y( 3)                                             
+   0 <=                             +1y( 4)                                    
+  -1 <=                             -1y( 4)                                    
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+   0 <=                                               +1y( 6)                  
+  -1 <=                                               -1y( 6)                  
+   0 <=                                                        +1y( 7)         
+  -1 <=                                                        -1y( 7)         
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+((#(0 -1 0 0 1 2 0 0 0)) (#(1 0 0 1 1 1 0 0 0)) (#(0 0 -1 0 0 0 0 1 2))
+ (#(1 0 0 0 0 0 1 1 1)) (#(1 0 0 0 0 1 0 0 1) . #*1000000000000)
+ (#(0 0 0 1 0 0 0 0 0) . #*0100000000000)
+ (#(-1 0 0 -1 0 0 0 0 0) . #*0010000000000)
+ (#(0 0 0 0 1 0 0 0 0) . #*0001000000000)
+ (#(-1 0 0 0 -1 0 0 0 0) . #*0000100000000)
+ (#(0 0 0 0 0 1 0 0 0) . #*0000010000000)
+ (#(-1 0 0 0 0 -1 0 0 0) . #*0000001000000)
+ (#(0 0 0 0 0 0 1 0 0) . #*0000000100000)
+ (#(-1 0 0 0 0 0 -1 0 0) . #*0000000010000)
+ (#(0 0 0 0 0 0 0 1 0) . #*0000000001000)
+ (#(-1 0 0 0 0 0 0 -1 0) . #*0000000000100)
+ (#(0 0 0 0 0 0 0 0 1) . #*0000000000010)
+ (#(-1 0 0 0 0 0 0 0 -1) . #*0000000000001))
+   0  =  -1x( 1)                    +1y( 4)  +2y( 5)                           
+   1  =  +1x( 1)           +1y( 3)           -1y( 5)                           
+   0  =           -1x( 2)                                      +1y( 7)  +2y( 8)
+   1  =           +1x( 2)                             +1y( 6)           -1y( 8)
+   1 <=                                      +1y( 5)                    +1y( 8)
+  -1 <=  -1x( 1)                             +1y( 5)                           
+   0 <=  +1x( 1)                             -1y( 5)                           
+   0 <=1/2x( 1)                             -1y( 5)                           
+-1/2 <=-1/2x( 1)                             +1y( 5)                           
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+  -1 <=           -1x( 2)                                               +1y( 8)
+   0 <=           +1x( 2)                                               -1y( 8)
+   0 <=         1/2x( 2)                                               -1y( 8)
+-1/2 <=         -1/2x( 2)                                               +1y( 8)
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+((#(0 -1 0 0 1 2 0 0 0)) (#(1 1 0 1 0 -1 0 0 0)) (#(0 0 -1 0 0 0 0 1 2))
+ (#(1 0 1 0 0 0 1 0 -1)) (#(1 0 0 0 0 1 0 0 1) . #*1000000000000)
+ (#(-1 -1 0 0 0 1 0 0 0) . #*0100000000000)
+ (#(0 1 0 0 0 -1 0 0 0) . #*0010000000000)
+ (#(0 1/2 0 0 0 -1 0 0 0) . #*0001000000000)
+ (#(-1/2 -1/2 0 0 0 1 0 0 0) . #*0000100000000)
+ (#(0 0 0 0 0 1 0 0 0) . #*0000010000000)
+ (#(-1 0 0 0 0 -1 0 0 0) . #*0000001000000)
+ (#(-1 0 -1 0 0 0 0 0 1) . #*0000000100000)
+ (#(0 0 1 0 0 0 0 0 -1) . #*0000000010000)
+ (#(0 0 1/2 0 0 0 0 0 -1) . #*0000000001000)
+ (#(-1/2 0 -1/2 0 0 0 0 0 1) . #*0000000000100)
+ (#(0 0 0 0 0 0 0 0 1) . #*0000000000010)
+ (#(-1 0 0 0 0 0 0 0 -1) . #*0000000000001))
+   1 <=                                      +1y( 5)                    +1y( 8)
+  -1 <=  -1x( 1)                             +1y( 5)                           
+   0 <=  +1x( 1)                             -1y( 5)                           
+   0 <=1/2x( 1)                             -1y( 5)                           
+-1/2 <=-1/2x( 1)                             +1y( 5)                           
+   0 <=                                      +1y( 5)                           
+  -1 <=                                      -1y( 5)                           
+  -1 <=           -1x( 2)                                               +1y( 8)
+   0 <=           +1x( 2)                                               -1y( 8)
+   0 <=         1/2x( 2)                                               -1y( 8)
+-1/2 <=         -1/2x( 2)                                               +1y( 8)
+   0 <=                                                                 +1y( 8)
+  -1 <=                                                                 -1y( 8)
+((#(1 0 0 0 0 1 0 0 1) . #*1000000000000)
+ (#(-1 -1 0 0 0 1 0 0 0) . #*0100000000000)
+ (#(0 1 0 0 0 -1 0 0 0) . #*0010000000000)
+ (#(0 1/2 0 0 0 -1 0 0 0) . #*0001000000000)
+ (#(-1/2 -1/2 0 0 0 1 0 0 0) . #*0000100000000)
+ (#(0 0 0 0 0 1 0 0 0) . #*0000010000000)
+ (#(-1 0 0 0 0 -1 0 0 0) . #*0000001000000)
+ (#(-1 0 -1 0 0 0 0 0 1) . #*0000000100000)
+ (#(0 0 1 0 0 0 0 0 -1) . #*0000000010000)
+ (#(0 0 1/2 0 0 0 0 0 -1) . #*0000000001000)
+ (#(-1/2 0 -1/2 0 0 0 0 0 1) . #*0000000000100)
+ (#(0 0 0 0 0 0 0 0 1) . #*0000000000010)
+ (#(-1 0 0 0 0 0 0 0 -1) . #*0000000000001))
+((#(0 0 1 0 0 0 0 0 0) . #*1000001010000)
+ (#(1 1/2 1 0 0 0 0 0 0) . #*1001000010000)
+ (#(1 1 1 0 0 0 0 0 0) . #*1010000010000)
+ (#(1 1/2 1/2 0 0 0 0 0 0) . #*1001000001000)
+ (#(1 1 1/2 0 0 0 0 0 0) . #*1010000001000)
+ (#(0 1/2 0 0 0 0 0 0 0) . #*1001000000001)
+ (#(-3/2 -1/2 0 0 0 0 0 0 0) . #*0000101000000)
+ (#(-1/2 1/2 0 0 0 0 0 0 0) . #*0010100000000)
+ (#(-2 -1 0 0 0 0 0 0 0) . #*0100001000000)
+ (#(-3/2 0 -1/2 0 0 0 0 0 0) . #*0000000000101)
+ (#(-1/2 0 1/2 0 0 0 0 0 0) . #*0000000010100)
+ (#(-1 0 -1/2 0 0 0 0 0 0) . #*0000000101000))
    0 <=           +1x( 2)                                                      
    1 <=1/2x( 1)  +1x( 2)                                                      
    1 <=  +1x( 1)  +1x( 2)                                                      
@@ -662,6 +796,16 @@ inequalities.
 -1/2 <=         1/2x( 2)                                                      
   -1 <=         -1/2x( 2)                                                      
 #+end_example
+
+
+
+#+BEGIN_SRC lisp :session :results output :package facet-discovery-tool
+  (let ((param '(1 2 2 2))
+        (generator #'gen-at-least))
+    (multiple-value-bind (C ne nv) (apply generator param)
+      (project-test C ne nv)))
+#+END_SRC
+
 
 
 
