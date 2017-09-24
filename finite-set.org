@@ -36,10 +36,10 @@ Maybe we need this
 #+END_SRC
 
 #+RESULTS:
-: FINITE-SET-SIZE
+: FINITE-SET-MAX-SIZE
 
 #+BEGIN_SRC lisp :package facet-discovery-tool
-(finite-set-size (make-finite-set 12 4))
+(finite-set-max-size (make-finite-set 12 4))
 #+END_SRC
 
 #+RESULTS:
@@ -64,7 +64,7 @@ inequality from two old ones.
 #+RESULTS:
 : T
 
-** TODO Set size
+** Set size
 aka Population count
 #+BEGIN_SRC lisp :tangle "finite-set.lisp" :package facet-discovery-tool
 (defun finite-set-size (s)
