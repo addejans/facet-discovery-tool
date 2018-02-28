@@ -1,0 +1,186 @@
+\documentclass{beamer}
+
+\usepackage{amsmath,listings,graphicx,color}
+
+\author[Serge Kruk] { Adam Dejans, Serge Kruk, Jason Medcoff, Blair Sibu}
+\title{Automated facet discovery tool}
+\institute{Oakland University}
+
+
+\mode<presentation>
+{ \usetheme{Copenhagen} }
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+\lstset{language=Python,label=bin_packing}
+\begin{frame}
+  \frametitle{Motivation for our work}
+  \begin{itemize}
+    \item Constraint programming is expressive
+    \item Integer programming is fast
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Assignment in Constraint programming}
+  \begin{lstlisting}
+set of int: People = 1..n;
+set of int: Tasks = 1..m;
+array[People,Tasks] of int: cost;
+array[People] of var Tasks: task;
+constraint alldifferent(task);
+solve minimize sum(w in People) (cost[w,task[w]]);
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Assignment in Integer Programming}
+\begin{lstlisting}{}
+set People;
+set Tasks;
+param c {People,Tasks} > 0;
+var X {People, Tasks} binary;
+minimize Z: sum {p in People} sum {q in Tasks} 
+            c[p,q] * X[p,q];
+subject to P1 {p in People}: 
+            sum {q in Tasks} X[p,q] = 1;
+subject to Q1 {q in Tasks} : 
+            sum {p in People} X[p,q] <= 1;
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Contrast}
+  \begin{itemize}
+  \item<1-> CP shorter (orders of magnitude)
+  \item<2-> CP 'natural' (300+ global constraints)
+  \item<3-> IP requires 'tricks' (and tricks vary with solvers)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Integer programming solves faster}
+  \begin{center}
+    Sometimes!
+  \end{center}
+  
+  \begin{itemize}
+  \item<1-> Google has a library with both CP and IP.
+  \item<2-> CP solver time: 475 miliseconds
+  \item<3-> IP solver time : 20 miliseconds
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Our objective}
+  Automatically translate CP models into efficient IP models.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Current approach}
+  \begin{itemize}
+  \item<1-> Formal constraint description.
+  \item<2-> Generate some valid IP formulation with additional variables.
+  \item<3-> Project onto original variables.
+  \item<4-> Classify inequalities.
+  \item<5-> Identify coefficient parametrized from initial data.
+  \end{itemize}
+  This is a multi-year project, with multiple students.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example : \texttt{all-different}}
+  \begin{displaymath}
+    \mathtt{alldifferent}(x_1, \ldots, x_n) \Leftrightarrow x_i \ne x_j
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Valid IP formulation}
+  \begin{align*}
+    x_i &\in [0,l]&\text{original}\\
+    y_{ij} &\in \{0, 1\}&\text{additional}\\
+    x_i &= \sum_j j y_{ij}&\text{assign value}\\
+    \sum_i y_{ij} &= 1 & \text{exactly one value}\\
+    \sum_j y_{ij} &\le 1&\text{no two on same value}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Generate instances}
+  table of sizes
+\end{frame}
+
+\begin{frame}
+  \frametitle{Projection}
+  Table of sizes
+\end{frame}
+
+\begin{frame}
+  \frametitle{Classification}
+  Examples of two classes
+\end{frame}
+
+\begin{frame}
+  \frametitle{Coefficient identification}
+  \begin{itemize}
+  \item<1-> From (example of data)
+  \item<2-> To (example of abstract)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Current status}
+  \begin{itemize}
+  \item<1-> IP Formulation is entirely done by hand
+  \item<2-> Generation and projection is done via Fourier-Motzkin (Medcoff)
+  \item<3-> Classification is done via DBScan (Desjan)
+  \item<4-> Identification is done via non-linear least squares (Sibu)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Properties of library}
+  \begin{itemize}
+  \item<1-> Written in Lisp
+  \item<2-> Symbolic manipulation as much as possible
+  \item<3-> Numeric computations over rationals
+  \item<4-> On Github soon (TM)
+  \item<5-> Includes
+    \begin{itemize}
+    \item Fourier-Motzkin
+    \item Simplex
+    \item Least-squares
+    \item Classifier
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Focus on projection}
+  \begin{itemize}
+  \item<1-> We currently use FM with Cernikov's rules.
+  \item<2-> Moving towards a parametrized LP.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to project efficiently ?}
+  Current contenders
+  \begin{itemize}
+  \item<1-> Fourier-Motzkins with heuristics to discard redundancies (90\%)
+  \item<2-> Double description method
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Our situation is particular}
+  \begin{itemize}
+  \item We project onto a very small subset of variables (from $n^2$ down to $n$).
+  \item The eliminated variables are all binaries.
+  \end{itemize}
+\end{frame}
+
+
+\end{document}
