@@ -107,26 +107,129 @@ subject to Q1 {q in Tasks} :
   \end{align*}
 \end{frame}
 
+
 \begin{frame}
+  \frametitle{Example : \texttt{at-least}}
+  \begin{displaymath}
+    \mathtt{atleast}_m(x_1, \ldots, x_n)=k , \quad x_i\in[0,l]
+  \end{displaymath}
+  At least $m$ variables out of $n$ take on value $k$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Valid IP formulation}
+  \begin{align*}
+    x_i &\in [0,l]&\text{original}\\
+    y_{ij} &\in \{0, 1\}&\text{additional}\\
+    x_i &= \sum_j j y_{ij}&\text{assign value}\\
+    \sum_i y_{ij} &= 1 & \text{exactly one value}\\
+    \sum_j y_{ik} &\ge m&\text{at least $m$ have value $k$}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  
   \frametitle{Generate instances}
-  table of sizes
+  \begin{displaymath}
+    \mathtt{atleast}_m(x_1, \ldots, x_n)=k 
+  \end{displaymath}
+  \begin{itemize}
+  \item $n$ original variables
+  \item $nl$ additional variables
+  \item $n+l$ constraints
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{Projection}
-  Table of sizes
+  \begin{itemize}
+  \item $n$ variables
+  \item ? constraints
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{Classification}
-  Examples of two classes
+  $atleast_2(x_1,...,x_5) = 3  ; x_i \in [0,..,6]$
 \end{frame}
+
+\begin{frame}
+  \frametitle{First class of constraints}
+  \begin{align*}
+    -1.0 x1   -1.0 x2   -1.0 x3   -1.0 x4   -1.0 x5   &\le -6.0 \\
+    +1.0 x1   +1.0 x2   +1.0 x3   +1.0 x4   +1.0 x5   &\le 24.0 
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Second class}
+  \begin{align*}
+    -1.0 x1   -1.0 x2   -1.0 x3   -1.0 x4   +1.0 x5   &\le 0.0 \\
+    -1.0 x1   -1.0 x2   -1.0 x3   +1.0 x4   -1.0 x5   &\le 0.0 \\
+    -1.0 x1   -1.0 x2   +1.0 x3   -1.0 x4   -1.0 x5   &\le 0.0\\
+    -1.0 x1   +1.0 x2   -1.0 x3   -1.0 x4   -1.0 x5   &\le 0.0\\
+    +1.0 x1   -1.0 x2   -1.0 x3   -1.0 x4   -1.0 x5   &\le 0.0
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Third class}
+  \begin{align*}
+-1.0 x1   +1.0 x2   +1.0 x3   +1.0 x4   +1.0 x5   &\le 18.0 \\
++1.0 x1   -1.0 x2   +1.0 x3   +1.0 x4   +1.0 x5   &\le 18.0 \\
++1.0 x1   +1.0 x2   -1.0 x3   +1.0 x4   +1.0 x5   &\le 18.0 \\
++1.0 x1   +1.0 x2   +1.0 x3   -1.0 x4   +1.0 x5   &\le 18.0 \\
++1.0 x1   +1.0 x2   +1.0 x3   +1.0 x4   -1.0 x5   &\le 18.0 
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Fourth class}
+  \begin{align*}
+-1.0 x1   -1.0 x2   -1.0 x3   +1.0 x4   +1.0 x5   &\le 6.0 \\
+-1.0 x1   -1.0 x2   +1.0 x3   -1.0 x4   +1.0 x5   &\le 6.0 \\
+-1.0 x1   -1.0 x2   +1.0 x3   +1.0 x4   -1.0 x5   &\le 6.0 \\
+-1.0 x1   +1.0 x2   -1.0 x3   -1.0 x4   +1.0 x5   &\le 6.0 \\
+-1.0 x1   +1.0 x2   -1.0 x3   +1.0 x4   -1.0 x5   &\le 6.0 \\
+-1.0 x1   +1.0 x2   +1.0 x3   -1.0 x4   -1.0 x5   &\le 6.0 \\
++1.0 x1   +1.0 x2   -1.0 x3   -1.0 x4   -1.0 x5   &\le 6.0 \\
++1.0 x1   -1.0 x2   +1.0 x3   -1.0 x4   -1.0 x5   &\le 6.0 \\
++1.0 x1   -1.0 x2   -1.0 x3   +1.0 x4   -1.0 x5   &\le 6.0 \\
++1.0 x1   -1.0 x2   -1.0 x3   -1.0 x4   +1.0 x5   &\le 6.0 
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Fifth class}
+  \begin{align*}
+-1.0 x1   -1.0 x2   +1.0 x3   +1.0 x4   +1.0 x5   &\le 12.0 \\
+-1.0 x1   +1.0 x2   -1.0 x3   +1.0 x4   +1.0 x5   &\le 12.0 \\
+-1.0 x1   +1.0 x2   +1.0 x3   -1.0 x4   +1.0 x5   &\le 12.0 \\
+-1.0 x1   +1.0 x2   +1.0 x3   +1.0 x4   -1.0 x5   &\le 12.0 \\
++1.0 x1   +1.0 x2   +1.0 x3   -1.0 x4   -1.0 x5   &\le 12.0 \\
++1.0 x1   +1.0 x2   -1.0 x3   +1.0 x4   -1.0 x5   &\le 12.0 \\
++1.0 x1   +1.0 x2   -1.0 x3   -1.0 x4   +1.0 x5   &\le 12.0 \\
++1.0 x1   -1.0 x2   +1.0 x3   +1.0 x4   -1.0 x5   &\le 12.0 \\
++1.0 x1   -1.0 x2   +1.0 x3   -1.0 x4   +1.0 x5   &\le 12.0 \\
++1.0 x1   -1.0 x2   -1.0 x3   +1.0 x4   +1.0 x5   &\le 12.0 
+  \end{align*}
+\end{frame}
+
 
 \begin{frame}
   \frametitle{Coefficient identification}
   \begin{itemize}
-  \item<1-> From (example of data)
-  \item<2-> To (example of abstract)
+  \item<1-> From
+    \begin{align*}
+      +1.0 x1   +1.0 x2   -1.0 x3   +1.0 x4   -1.0 x5   &\le 12.0\\
+      +1.0 x1   +1.0 x2   +1.0 x3   -2.0 x4   &\le 14.0 \\
+      -1.0 x1   +2.0 x2   +2.0 x3   -1.0 x4   +2.0 x5   &\le 28.0 \\
+      \ldots
+    \end{align*}
+  \item<2-> To
+    \begin{displaymath}
+      k\sum_{i\in J} x_i +(k-l) \sum_{i\in I\setminus J} x_i \le mk^2+(n-m-|J|)lk
+    \end{displaymath}
   \end{itemize}
 \end{frame}
 
@@ -182,5 +285,61 @@ subject to Q1 {q in Tasks} :
   \end{itemize}
 \end{frame}
 
+\begin{frame}
+  \frametitle{Small example}
+  Consider
+  \begin{align*}
+    x_1 + x_2 +2x_3 +5 &\ge 0\\
+    2x_1 - x_2 - x_3 -4 &\ge 0
+  \end{align*}
+  Say we want to project onto $(x_1, x_2)$
+\end{frame}
 
+\begin{frame}
+  \frametitle{Inspired by Farkas lemma}
+  Consider $\lambda_i \ge 0$ and
+  \begin{displaymath}
+    \lambda_1(x_1 + x_2 +2x_3 +5) + \lambda_2 (    2x_1 - x_2 - x_3 -4) \ge 0
+  \end{displaymath}
+  is a valid inequality.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Rearrange the coefficients}
+  To isolate $x_3$
+  \begin{displaymath}
+    x_1(\lambda_1 + 2\lambda_2) + x_2(\lambda_1-\lambda_2) + x_3(2\lambda_1-\lambda_2)
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{More generally}
+  From a set of constraints
+  \begin{displaymath}
+    \langle a_i, x \rangle -b_i \ge 0 , \quad i\in I
+  \end{displaymath}
+  and a set $J$ of variables to eliminate, we consider
+  \begin{displaymath}
+    \min z(x,\lambda) := \lambda_0 + \sum_i \lambda_i (\langle a_i, x \rangle -b_i)
+  \end{displaymath}
+  subject to coefficients of variables to eliminate to be zero.
+  \begin{center}
+    \textbf{A parametrized LP.}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Theorem}
+  Every solution to the parametrized LP corresponds to a facet of the
+  projected polytope.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Contrast to Fourier-Motzkin}
+  \begin{itemize}
+  \item<1-> Eliminate all variables at one go.
+  \item<2-> No exponential blow-up (except ...)
+  \item<3-> Need to solve a parametrized LP.
+  \end{itemize}
+\end{frame}
 \end{document}
